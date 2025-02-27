@@ -1,0 +1,25 @@
+FROM ubuntu:20.04
+
+# 환경 변수 설정
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 필수 패키지 설치
+RUN apt-get update && \
+    apt-get install -y wget openjdk-11-jdk vim curl && \
+    apt-get clean
+
+# Impala 설치
+RUN wget https://archive.apache.org/dist/impala/4.1.0/impala-4.1.0-bin.tar.gz && \
+    tar -xzf impala-4.1.0-bin.tar.gz -C /opt && \
+    rm impala-4.1.0-bin.tar.gz
+
+# Impala 환경 변수 설정
+ENV IMPALA_HOME=/opt/impala-4.1.0
+ENV PATH=$IMPALA_HOME/bin:$PATH
+
+# Impala 포트
+EXPOSE 21050
+
+# Impala 서버 시작 스크립트
+CMD ["impalad"]
+

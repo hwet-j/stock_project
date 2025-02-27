@@ -1,0 +1,39 @@
+services:
+  # 🐘 PostgreSQL 설정
+  postgres:
+    image: postgres:15
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: hwet
+      POSTGRES_PASSWORD: hwet
+      POSTGRES_DB: stock_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - stock_network
+
+  # 🚦 Hive (Impala 대체)
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive_container
+    environment:
+      HIVE_METASTORE_URI: thrift://hive-metastore:9083
+      POSTGRES_USER: hwet
+      POSTGRES_PASSWORD: hwet
+      POSTGRES_DB: stock_db
+    ports:
+      - "10000:10000"  # Hive JDBC 연결 포트
+      - "10002:10002"  # Hive CLI 연결 포트
+    networks:
+      - stock_network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+
+networks:
+  stock_network:
+
