@@ -104,7 +104,7 @@ def save_csv(data, extract_date, ticker=None):
 
         # 📄 파일명에 날짜 포함
         date_str = extract_date.strftime("%Y%m%d")
-        file_path = ""
+        file_path = None
 
         # ✅ Ticker별 저장 여부에 따라 Step과 Message 설정
         if ticker:
@@ -188,11 +188,13 @@ def fetch_stock_data(tickers, from_date, to_date):
             try:
                 start_time = datetime.now()  # 데이터 수집 시작 시간
 
-                stock_data = yf.download(tickers,
-                                         start=extract_date,
-                                         end=str(extract_date+timedelta(days=1)),
-                                         group_by='ticker',
-                                         auto_adjust=True)
+                stock_data = yf.download(
+                    tickers,
+                    start=extract_date.strftime("%Y-%m-%d"),
+                    end=(extract_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+                    group_by='ticker',
+                    auto_adjust=True
+                )
                 if stock_data.empty:
                     log_to_db(
                         execution_time = start_time,
