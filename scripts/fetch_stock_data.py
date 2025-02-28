@@ -1,3 +1,5 @@
+import argparse
+
 import yfinance as yf
 import pandas as pd
 import os 
@@ -31,6 +33,8 @@ for key, value in DB_CONFIG.items():
 
 LOG_TABLE_NAME = "stock_data_log"
 
+TICKER_PATH = os.getenv("TICKER_FILE_PATH")
+
 def create_log_table():
     """ 📑 로그 저장을 위한 테이블 생성 함수 """
     create_table_query = sql.SQL(f"""
@@ -52,7 +56,7 @@ def create_log_table():
         with conn.cursor() as cur:
             cur.execute(create_table_query)
             conn.commit()
-            print(f"[INFO] 테이블 '{LOG_TABLE_NAME}' 생성 완료 또는 이미 존재합니다.")
+            # print(f"[INFO] 테이블 '{LOG_TABLE_NAME}' 생성 완료 또는 이미 존재합니다.")
     except Exception as e:
         print(f"[ERROR] 테이블 생성 실패: {e}")
     finally:
@@ -66,6 +70,23 @@ def is_market_closed(date):
 
     return date in holidays or is_weekend
 
+def load_tickers_from_file(file_path: str) -> list:
+    """📂 파일에서 Ticker 목록을 불러오는 함수"""
+    tickers = []
+    try:
+        with open(file_path, "r") as f:
+            tickers = [line.strip() for line in f if line.strip()]  # 빈 줄 제외
+        print(f"[INFO] Ticker {len(tickers)}개 로드 완료")
+    except FileNotFoundError:
+        print(f"[ERROR] 파일을 찾을 수 없습니다: {file_path}")
+    except Exception as e:
+        print(f"[ERROR] Ticker 파일 로드 실패: {e}")
+    return tickers
+
+def get_default_dates() -> tuple:
+    """🗓️ 기본 날짜를 전날로 설정"""
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    return yesterday, yesterday
 
 
 # 로그 기록 함수
@@ -190,7 +211,7 @@ def fetch_stock_data(tickers, from_date, to_date):
         else:
             try:
                 start_time = datetime.now()  # 데이터 수집 시작 시간
-                print(f"[STEP] 주식 데이터 다운로드: {tickers}")
+                # print(f"[STEP] 주식 데이터 다운로드: {tickers}")
 
                 stock_data = yf.download(
                     tickers,
@@ -218,7 +239,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                     #  🔁 ticker별 CSV 저장
                     for ticker in tickers:
                         if ticker in stock_data.columns.levels[0]:  # 데이터가 있는 ticker만 저장
-                            print(f"[INFO] Ticker 데이터 저장: {ticker}")
+                            # print(f"[INFO] Ticker 데이터 저장: {ticker}")
 
                             ticker_data = stock_data[ticker].reset_index()
                             save_csv(ticker_data, extract_date, ticker=ticker)
@@ -252,5 +273,23 @@ def fetch_stock_data(tickers, from_date, to_date):
 
 if __name__ == "__main__":
     create_log_table()
-    tickers = ["AAPL", "MSFT"]  # 예시 ticker 목록
-    fetch_stock_data(tickers, "2025-02-27", "2025-02-27")
+
+    tickers = load_tickers_from_file(TICKER_PATH)
+
+    # 🆕 커맨드라인 인자 처리
+    parser = argparse.ArgumentParser(description="주식 데이터 수집기")
+    parser.add_argument("--from_date", type=str, help="시작 날짜 (YYYY-MM-DD)")
+    parser.add_argument("--to_date", type=str, help="종료 날짜 (YYYY-MM-DD)")
+
+    args = parser.parse_args()
+
+    # 날짜 설정
+    if args.from_date and args.to_date:
+        from_date = args.from_date
+        to_date = args.to_date
+    else:
+        from_date, to_date = get_default_dates()
+        # print(f"[INFO] 날짜 인자가 없어서 기본값으로 설정: {from_date} ~ {to_date}")
+
+    fetch_stock_data(tickers, from_date, to_date)
+
