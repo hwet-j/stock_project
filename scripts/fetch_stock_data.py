@@ -6,6 +6,7 @@ import pandas_market_calendars as mcal
 import time
 from dotenv import load_dotenv
 import psycopg2
+from psycopg2 import sql
 
 # .env file load
 load_dotenv()
@@ -27,6 +28,36 @@ assert CSV_DIR, "CSV_DIR 환경 변수가 설정되지 않았습니다."
 for key, value in DB_CONFIG.items():
     assert value, f"{key} 환경 변수가 설정되지 않았습니다."
 """
+
+LOG_TABLE_NAME = "stock_data_log"
+
+def create_log_table():
+    """ 📑 로그 저장을 위한 테이블 생성 함수 """
+    create_table_query = sql.SQL(f"""
+    CREATE TABLE IF NOT EXISTS {LOG_TABLE_NAME} (
+        id SERIAL PRIMARY KEY,
+        execution_time TIMESTAMP NOT NULL,
+        extraction_date DATE NOT NULL,
+        tickers TEXT NOT NULL,
+        step TEXT NOT NULL,
+        status TEXT NOT NULL,
+        message TEXT,
+        duration_seconds DOUBLE PRECISION
+    );
+    """)
+
+    conn = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        with conn.cursor() as cur:
+            cur.execute(create_table_query)
+            conn.commit()
+            print(f"[INFO] 테이블 '{LOG_TABLE_NAME}' 생성 완료 또는 이미 존재합니다.")
+    except Exception as e:
+        print(f"[ERROR] 테이블 생성 실패: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 def is_market_closed(date):
     nyse = mcal.get_calendar("NYSE")
@@ -206,5 +237,6 @@ def fetch_stock_data(tickers, from_date, to_date):
 
 
 if __name__ == "__main__":
+    create_log_table()
     tickers = ["AAPL", "MSFT"]  # 예시 ticker 목록
     fetch_stock_data(tickers, "2023-01-01", "2023-01-10")
