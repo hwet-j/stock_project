@@ -97,7 +97,7 @@ def save_csv(data, extract_date, ticker=None):
         start_time = datetime.now()  # 시작 시간 기록
 
         # 📅 날짜 기반 폴더 구조 생성
-        date_folder = extract_date.strftime("%Y/%m/%d")
+        date_folder = extract_date.strftime("%Y/%m")
         save_folder = os.path.join(CSV_DIR, date_folder)
         os.makedirs(save_folder, exist_ok=True)
         # os.chmod(save_folder, 0o755)  # 권한 설정
@@ -126,7 +126,8 @@ def save_csv(data, extract_date, ticker=None):
         # print(f"[INFO] CSV 저장 완료: {file_path}")
 
         # 저장 경로를 로그 파일에 기록
-        log_file_path = os.getenv("CSV_LOG_PATH", "csv_files.log")
+        log_dir = os.getenv("CSV_LOG_DIR")
+        log_file_path = os.path.join(log_dir, "csv_files.log")  # 로그 파일 경로 생성
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
         with open(log_file_path, "a") as log_file:
