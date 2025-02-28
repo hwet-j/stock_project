@@ -83,7 +83,7 @@ def log_to_db(execution_time, extraction_date, tickers, step, status, message, d
                 (execution_time, extraction_date, tickers, step, status, message, duration_seconds)
             )
             conn.commit()
-            print(f"[INFO] 로그 저장 완료: {step} - {status}")
+            # print(f"[INFO] 로그 저장 완료: {step} - {status}")
     except Exception as e:
         print(f"[ERROR] 로그 저장 실패: {e}")
     finally:
@@ -175,6 +175,8 @@ def fetch_stock_data(tickers, from_date, to_date):
 
     while extract_date <= end_date:
         if is_market_closed(extract_date):
+            print(f"[SKIP] 휴장일: {extract_date.strftime('%Y-%m-%d')}")
+
             log_to_db(execution_time=datetime.now(),
                       extraction_date=extract_date,
                       tickers="ALL",
@@ -187,6 +189,7 @@ def fetch_stock_data(tickers, from_date, to_date):
         else:
             try:
                 start_time = datetime.now()  # 데이터 수집 시작 시간
+                print(f"[STEP] 주식 데이터 다운로드: {tickers}")
 
                 stock_data = yf.download(
                     tickers,
@@ -196,6 +199,8 @@ def fetch_stock_data(tickers, from_date, to_date):
                     auto_adjust=True
                 )
                 if stock_data.empty:
+                    print("[WARN] 데이터 없음")
+
                     log_to_db(
                         execution_time = start_time,
                         extraction_date = extract_date,
@@ -212,9 +217,13 @@ def fetch_stock_data(tickers, from_date, to_date):
                     #  🔁 ticker별 CSV 저장
                     for ticker in tickers:
                         if ticker in stock_data.columns.levels[0]:  # 데이터가 있는 ticker만 저장
+                            print(f"[INFO] Ticker 데이터 저장: {ticker}")
+
                             ticker_data = stock_data[ticker].reset_index()
                             save_csv(ticker_data, extract_date, ticker=ticker)
                         else:   # 데이터가 없는 ticker 로그 처리
+                            print(f"[WARN] Ticker {ticker} 데이터 없음")
+
                             log_to_db(
                                 execution_time=start_time,
                                 extraction_date=extract_date,
@@ -225,6 +234,8 @@ def fetch_stock_data(tickers, from_date, to_date):
                                 duration_seconds=(datetime.now() - start_time).total_seconds()
                             )
             except Exception as e:
+                print(f"[ERROR] 데이터 수집 실패: {e}")
+
                 log_to_db(
                     execution_time = start_time,
                     extraction_date = extract_date,
