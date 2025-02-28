@@ -211,7 +211,7 @@ def fetch_stock_data(tickers, from_date, to_date):
 
                     #  🔁 ticker별 CSV 저장
                     for ticker in tickers:
-                        if ticker in stock_data.columns.levels[0] and not stock_data[ticker].empty:  # 데이터가 있는 ticker만 저장
+                        if ticker in stock_data.columns.levels[0]:  # 데이터가 있는 ticker만 저장
                             ticker_data = stock_data[ticker].reset_index()
                             save_csv(ticker_data, extract_date, ticker=ticker)
                         else:   # 데이터가 없는 ticker 로그 처리
@@ -241,4 +241,4 @@ def fetch_stock_data(tickers, from_date, to_date):
 if __name__ == "__main__":
     create_log_table()
     tickers = ["AAPL", "MSFT"]  # 예시 ticker 목록
-    fetch_stock_data(tickers, "2023-01-01", "2023-01-10")
+    fetch_stock_data(tickers, "2025-02-27", "2025-02-27")
