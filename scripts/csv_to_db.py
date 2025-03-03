@@ -20,6 +20,42 @@ DB_CONFIG = {
 
 CSV_LOG_FILE = os.getenv("CSV_LOG_DIR") + "/csv_files.log"  # 로그 파일 경로
 
+
+def create_stock_data_table():
+    """ 📊 stock_data 테이블이 없으면 자동 생성하는 함수 """
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS stock_data (
+            id SERIAL PRIMARY KEY,
+            ticker TEXT NOT NULL,
+            date DATE NOT NULL,
+            open NUMERIC,
+            high NUMERIC,
+            low NUMERIC,
+            close NUMERIC,
+            volume BIGINT,
+            UNIQUE (ticker, date)
+        );
+        """
+
+        cur.execute(create_table_query)
+        conn.commit()
+        print("✅ stock_data 테이블이 확인되었습니다.")
+
+    except Exception as e:
+        print(f"❌ 테이블 생성 오류: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+
 def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
     try:
@@ -119,4 +155,5 @@ def process_csv_files():
 
 
 if __name__ == "__main__":
+    create_stock_data_table()
     process_csv_files()
