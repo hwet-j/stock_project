@@ -87,12 +87,15 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
 
 def process_csv_files():
     """ CSV_LOG_DIR에 있는 모든 CSV 파일을 처리한 후, 로그 파일 삭제 """
-    if not CSV_LOG_DIR or not os.path.exists(CSV_LOG_DIR):
-        print(f"❌ CSV_LOG_DIR({CSV_LOG_DIR}) 경로를 찾을 수 없습니다.")
+
+    CSV_LOG_DIR_FILES = CSV_LOG_DIR + "/csv_files.log"
+
+    if not CSV_LOG_DIR_FILES or not os.path.exists(CSV_LOG_DIR_FILES):
+        print(f"❌ CSV_LOG_DIR({CSV_LOG_DIR_FILES}) 경로를 찾을 수 없습니다.")
         return
 
     # CSV_LOG_DIR에서 파일 목록 가져오기
-    csv_files = sorted([f for f in os.listdir(CSV_LOG_DIR) if f.endswith(".csv")])
+    csv_files = sorted([f for f in os.listdir(CSV_LOG_DIR_FILES) if f.endswith(".csv")])
 
     if not csv_files:
         print("📂 적재할 CSV 파일이 없습니다.")
