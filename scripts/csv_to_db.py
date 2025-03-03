@@ -5,6 +5,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
+import csv
 
 # .env file load
 load_dotenv()
@@ -55,36 +56,71 @@ def create_stock_data_table():
             conn.close()
 
 
-def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
-    """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
+def fix_csv_headers(input_file, output_file):
+    """
+    CSV 파일의 헤더에서 공백을 언더스코어(_)로 변경
+    """
+    with open(input_file, newline='', encoding='utf-8') as infile, open(output_file, "w", newline='', encoding='utf-8') as outfile:
+        reader = csv.reader(infile)
+        writer = csv.writer(outfile)
+
+        # (1) 헤더 수정: 공백을 언더스코어(_)로 변경
+        header = next(reader)
+        new_header = [col.replace(" ", "_") for col in header]  # 공백 → "_"
+        writer.writerow(new_header)
+
+        # (2) 데이터 그대로 복사
+        for row in reader:
+            writer.writerow(row)
+
+def log_to_db(step, log_type, ticker, message, from_date=None, to_date=None, start_time=None, end_time=None, result=None):
+    """
+    변환 과정의 로그를 stock_data_log 테이블에 저장
+
+    :param step: 단계 (예: 'Parquet 변환', 'CSV 삭제')
+    :param log_type: 로그 레벨 (INFO, ERROR)
+    :param ticker: 종목 코드 (없으면 None)
+    :param message: 상세 메시지
+    :param from_date: 데이터 조회 시작 날짜 (없으면 None)
+    :param to_date: 데이터 조회 종료 날짜 (없으면 None)
+    :param start_time: 프로세스 시작 시간
+    :param end_time: 프로세스 종료 시간
+    :param result: 변환 결과 (성공 / 실패)
+    """
+    conn = None
     try:
-        start_time = datetime.now()
-        schema = "public"
-        temp_table = f"{table_name}_temp"
-
-        # 0️⃣ CSV 파일 존재 여부 및 데이터 확인
-        if not os.path.exists(csv_file_path):
-            raise FileNotFoundError(f"❌ CSV 파일이 존재하지 않음: {csv_file_path}")
-
-        with open(csv_file_path, "r") as f:
-            lines = f.readlines()
-            if len(lines) <= 1:
-                raise Exception(f"❌ CSV 파일에 데이터가 없음: {csv_file_path}")
-
-        # PostgreSQL 연결
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
-        # 1️⃣ 임시 테이블 생성 (stock_data 테이블과 동일한 구조)
-        create_temp_table_query = sql.SQL(f"""
-            CREATE TABLE IF NOT EXISTS {temp_table} (LIKE {table_name} INCLUDING ALL);
-        """)
-        cur.execute(create_temp_table_query)
+        query = """
+        INSERT INTO stock_data_log (step, log_type, ticker, message, from_date, to_date, start_time, end_time, result, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+        """
+        cur.execute(query, (step, log_type, ticker, message, from_date, to_date, start_time, end_time, result))
+
         conn.commit()
+        cur.close()
+    except Exception as e:
+        print(f"[DB 로그 오류] {e}")
+    finally:
+        if conn:
+            conn.close()
 
-        print(f"✅ 임시 테이블 `{temp_table}` 생성 완료")
+def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
+    """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
+    conn = None
+    schema = "public"
+    table_name = target_table + '_temp'
 
-        # 2️⃣ 환경 변수 설정 (pgfutter용)
+    #
+    fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
+    fix_csv_headers(csv_file, fixed_csv_file)
+
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        # 환경 변수 설정
         env = os.environ.copy()
         env["DB_NAME"] = DB_CONFIG["dbname"]
         env["DB_USER"] = DB_CONFIG["user"]
@@ -92,54 +128,65 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         env["DB_HOST"] = DB_CONFIG["host"]
         env["DB_PORT"] = str(DB_CONFIG["port"])
         env["DB_SCHEMA"] = schema
-        env["DB_TABLE"] = temp_table
+        env["DB_TABLE"] = table_name
 
-        # 3️⃣ pgfutter 실행
+        # pgfutter 실행 명령어
         command = [
-            "pgfutter", "csv", csv_file_path
+            "pgfutter", "csv",
+            fixed_csv_file  # 삽입할 CSV 파일
         ]
-        result = subprocess.run(command, capture_output=True, text=True, env=env)
 
-        # ✅ 실행 로그 출력
-        print(f"🔍 pgfutter 실행 결과 (stdout):\n{result.stdout}")
-        print(f"🔍 pgfutter 실행 결과 (stderr):\n{result.stderr}")
+        try:
+            result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
+            print(f"[INFO] CSV 데이터를 '{schema}.{table_name}' 테이블에 저장 완료")
+            log_to_db("CSV 적재", "INFO", "ALL", f"pgfutter 실행 완료: {result.stdout}")
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] pgfutter 실행 실패: {e}")
+            log_to_db("CSV 적재", "ERROR", "ALL", f"pgfutter 실행 실패: {e.stderr}")
+            return False
 
-        if result.returncode != 0:
-            raise Exception(f"❌ pgfutter 적재 실패: {result.stderr}")
+        # ✅ (2) 중복 데이터 제거 후, target_table로 이동
+        cur.execute(f"""
+                DELETE FROM {table_name} 
+                WHERE (ticker, date::TEXT) IN (SELECT ticker, date::TEXT FROM {target_table});
+            """)
+        conn.commit()
+        # print(f"[INFO] 중복 데이터 제거 완료")
 
-        # 4️⃣ 데이터 검증 (임시 테이블에 데이터가 있는지 확인)
-        cur.execute(f"SELECT COUNT(*) FROM {temp_table};")
-        temp_count = cur.fetchone()[0]
-
-        if temp_count == 0:
-            raise Exception(f"❌ 임시 테이블 `{temp_table}`에 적재된 데이터가 없습니다.")
-
-        # 5️⃣ stock_data 테이블로 데이터 이동
-        insert_query = sql.SQL(f"""
-            INSERT INTO {table_name} SELECT * FROM {temp_table}
-            ON CONFLICT (ticker, date) DO NOTHING;
-        """)
-        cur.execute(insert_query)
+        cur.execute(f"""
+                INSERT INTO {target_table} (date, open, high, low, close, volume, dividends, stock_splits, ticker)
+                SELECT 
+                    date::DATE, 
+                    NULLIF(REPLACE(open, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(high, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(low, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(close, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(volume, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(dividends, '\r', ''), '')::NUMERIC, 
+                    NULLIF(REPLACE(stock_splits, '\r', ''), '')::NUMERIC, 
+                    REPLACE(ticker, '\r', '')
+                FROM {table_name};
+            """)
         conn.commit()
 
-        # 6️⃣ 임시 테이블 삭제
-        cur.execute(f"DROP TABLE IF EXISTS {temp_table};")
-        conn.commit()
+        print(f"[INFO] 데이터 `{target_table}`로 이동 완료")
 
-        print(f"✅ {csv_file_path} 적재 성공")
+        # ✅ (3) 원본 테이블 삭제
+        cur.execute(f"DROP TABLE {table_name};")
+        conn.commit()
+        # print(f"[INFO] 자동 생성된 테이블 `{table_name}` 삭제 완료")
+
         return True
 
+    except subprocess.CalledProcessError as e:
+        print(f"[Error] pgfutter 실행 실패: {e}")
+        return False
+
     except Exception as e:
-        # ❌ 실패 시 롤백 및 임시 테이블 삭제
-        conn.rollback()
-        cur.execute(f"DROP TABLE IF EXISTS {temp_table};")
-        conn.commit()
-        print(f"❌ {csv_file_path} 적재 실패: {e}")
+        print(f"[Error] 데이터베이스 작업 중 오류 발생: {e}")
         return False
 
     finally:
-        if cur:
-            cur.close()
         if conn:
             conn.close()
 

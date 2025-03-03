@@ -243,6 +243,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                             # print(f"[INFO] Ticker 데이터 저장: {ticker}")
 
                             ticker_data = stock_data[ticker].reset_index()
+                            ticker_data["ticker"] = ticker
                             save_csv(ticker_data, extract_date, ticker=ticker)
                         else:   # 데이터가 없는 ticker 로그 처리
                             print(f"[WARN] Ticker {ticker} 데이터 없음")
