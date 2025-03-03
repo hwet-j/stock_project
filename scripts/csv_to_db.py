@@ -66,6 +66,17 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
+        # 환경 변수 설정
+        env = os.environ.copy()
+        env["DB_NAME"] = DB_CONFIG["dbname"]
+        env["DB_USER"] = DB_CONFIG["user"]
+        env["DB_PASS"] = DB_CONFIG["password"]
+        env["DB_HOST"] = DB_CONFIG["host"]
+        env["DB_PORT"] = str(DB_CONFIG["port"])
+        env["DB_SCHEMA"] = schema
+        env["DB_TABLE"] = table_name
+
+
         # 1️⃣ 임시 테이블 생성 (기존 stock_data 테이블과 동일한 구조)
         create_temp_table_query = sql.SQL(f"""
             CREATE TABLE IF NOT EXISTS {temp_table} (LIKE {table_name} INCLUDING ALL);
@@ -73,8 +84,11 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         cur.execute(create_temp_table_query)
         conn.commit()
 
-        # 2️⃣ pgfutter 실행 명령어 (📌 테이블 지정)
-        command = ["pgfutter", "csv", "--table", temp_table, csv_file_path]
+        # pgfutter 실행 명령어
+        command = [
+            "pgfutter", "csv",
+            csv_file_path  # 삽입할 CSV 파일
+        ]
         result = subprocess.run(command, capture_output=True, text=True)
 
         print(f"🔍 pgfutter 실행 결과 (stdout): {result.stdout}")  # ✅ 추가
