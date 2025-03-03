@@ -21,6 +21,8 @@ DB_CONFIG = {
 
 CSV_LOG_DIR = os.getenv("CSV_LOG_DIR")
 
+
+
 def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
     try:
@@ -39,29 +41,14 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         cur.execute(create_temp_table_query)
         conn.commit()
 
-        # 환경 변수 설정
-        env = os.environ.copy()
-        env["DB_NAME"] = DB_CONFIG["dbname"]
-        env["DB_USER"] = DB_CONFIG["user"]
-        env["DB_PASS"] = DB_CONFIG["password"]
-        env["DB_HOST"] = DB_CONFIG["host"]
-        env["DB_PORT"] = str(DB_CONFIG["port"])
-        env["DB_SCHEMA"] = schema
-        env["DB_TABLE"] = table_name
-
         # pgfutter 실행 명령어
-        command = [
-            "pgfutter", "csv",
-            csv_file_path  # 삽입할 CSV 파일
-        ]
-
         command = ["pgfutter", "csv", csv_file_path]
         result = subprocess.run(command, capture_output=True, text=True)
 
         if result.returncode != 0:
             raise Exception(f"pgfutter 적재 실패: {result.stderr}")
 
-        # 3️⃣ 데이터 검증 (중복 제거, NULL 값 체크 등)
+        # 3️⃣ 데이터 검증
         cur.execute(f"SELECT COUNT(*) FROM {temp_table};")
         temp_count = cur.fetchone()[0]
 
@@ -80,18 +67,7 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         cur.execute(f"DROP TABLE IF EXISTS {temp_table};")
         conn.commit()
 
-        # ✅ 성공 로그 저장
-        """
-        log_to_db(
-            execution_time=datetime.now(),
-            extraction_date=datetime.strptime(csv_file_path.split("_")[-1].split(".")[0], "%Y%m%d"),
-            tickers=table_name,
-            step="PGFUTTER_IMPORT",
-            status="SUCCESS",
-            message=f"CSV 파일 {csv_file_path} -> {table_name} 적재 완료",
-            duration_seconds=(datetime.now() - start_time).total_seconds()
-        )
-        """
+        print(f"✅ {csv_file_path} 적재 성공")
         return True
 
     except Exception as e:
@@ -99,17 +75,7 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         conn.rollback()
         cur.execute(f"DROP TABLE IF EXISTS {temp_table};")
         conn.commit()
-        """
-        log_to_db(
-            execution_time=datetime.now(),
-            extraction_date=datetime.strptime(csv_file_path.split("_")[-1].split(".")[0], "%Y%m%d"),
-            tickers=table_name,
-            step="PGFUTTER_IMPORT",
-            status="FAIL",
-            message=f"pgfutter 실행 중 오류 발생: {e}",
-            duration_seconds=(datetime.now() - start_time).total_seconds()
-        )
-        """
+        print(f"❌ {csv_file_path} 적재 실패: {e}")
         return False
 
     finally:
@@ -117,3 +83,39 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
             cur.close()
         if conn:
             conn.close()
+
+
+def process_csv_files():
+    """ CSV_LOG_DIR에 있는 모든 CSV 파일을 처리한 후, 로그 파일 삭제 """
+    if not CSV_LOG_DIR or not os.path.exists(CSV_LOG_DIR):
+        print(f"❌ CSV_LOG_DIR({CSV_LOG_DIR}) 경로를 찾을 수 없습니다.")
+        return
+
+    # CSV_LOG_DIR에서 파일 목록 가져오기
+    csv_files = sorted([f for f in os.listdir(CSV_LOG_DIR) if f.endswith(".csv")])
+
+    if not csv_files:
+        print("📂 적재할 CSV 파일이 없습니다.")
+        return
+
+    print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
+
+    for csv_file in csv_files:
+        csv_file_path = os.path.join(CSV_LOG_DIR, csv_file)
+        print(f"📄 처리 중: {csv_file_path}")
+        csv_to_db_pgfutter(csv_file_path)
+
+    # 모든 CSV 파일 처리 후 로그 파일 삭제
+    for csv_file in csv_files:
+        csv_file_path = os.path.join(CSV_LOG_DIR, csv_file)
+        try:
+            os.remove(csv_file_path)
+            print(f"🗑️ 삭제 완료: {csv_file_path}")
+        except Exception as e:
+            print(f"❌ 파일 삭제 실패: {csv_file_path} - {e}")
+
+    print("✅ 모든 CSV 파일 처리 및 로그 파일 삭제 완료")
+
+
+if __name__ == "__main__":
+    process_csv_files()
