@@ -1,18 +1,16 @@
 import argparse
-
 import yfinance as yf
-import pandas as pd
-import os 
+import os
 from datetime import datetime, timedelta
 import pandas_market_calendars as mcal
-import time
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
 
+
+
 # .env file load
 load_dotenv()
-
 
 # PostgreSQL 연결 정보 설정
 DB_CONFIG = {
@@ -24,6 +22,8 @@ DB_CONFIG = {
 }
 
 CSV_DIR = os.getenv("CSV_DIR")
+
+CSV_LOG_DIR = os.getenv("CSV_LOG_DIR")
 
 """
 assert CSV_DIR, "CSV_DIR 환경 변수가 설정되지 않았습니다."
@@ -147,8 +147,7 @@ def save_csv(data, extract_date, ticker=None):
         # print(f"[INFO] CSV 저장 완료: {file_path}")
 
         # 저장 경로를 로그 파일에 기록
-        log_dir = os.getenv("CSV_LOG_DIR")
-        log_file_path = os.path.join(log_dir, "csv_files.log")  # 로그 파일 경로 생성
+        log_file_path = os.path.join(CSV_LOG_DIR, "csv_files.log")  # 로그 파일 경로 생성
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
 
         with open(log_file_path, "a") as log_file:
@@ -179,6 +178,8 @@ def save_csv(data, extract_date, ticker=None):
                   f"CSV 저장 실패: {e}",
                   duration_seconds)
         return None
+
+import subprocess
 
 
 
