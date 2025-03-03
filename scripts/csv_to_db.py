@@ -1,11 +1,10 @@
 import argparse
 import subprocess
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
-
 
 # .env file load
 load_dotenv()
@@ -19,9 +18,7 @@ DB_CONFIG = {
     "password": os.getenv("POSTGRES_PASSWORD")
 }
 
-CSV_LOG_DIR = os.getenv("CSV_LOG_DIR")
-
-
+CSV_LOG_FILE = os.getenv("CSV_LOG_DIR") + "/csv_files.log"  # 로그 파일 경로
 
 def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
@@ -86,13 +83,16 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
 
 
 def process_csv_files():
-    """ CSV_LOG_DIR에 있는 모든 CSV 파일을 처리한 후, 로그 파일 삭제 """
+    """ 📂 로그 파일에서 CSV 파일 목록을 읽어 하나씩 처리한 후, 로그 파일 삭제 """
 
-    CSV_LOG_DIR_FILES = CSV_LOG_DIR + "/csv_files.log"
+    # 1️⃣ CSV 로그 파일 존재 여부 확인
+    if not os.path.exists(CSV_LOG_FILE):
+        print(f"❌ CSV 로그 파일({CSV_LOG_FILE})이 존재하지 않습니다.")
+        return
 
-
-    # CSV_LOG_DIR에서 파일 목록 가져오기
-    csv_files = sorted([f for f in os.listdir(CSV_LOG_DIR_FILES) if f.endswith(".csv")])
+    # 2️⃣ 로그 파일에서 CSV 파일 목록 읽기
+    with open(CSV_LOG_FILE, "r") as file:
+        csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
     if not csv_files:
         print("📂 적재할 CSV 파일이 없습니다.")
@@ -100,19 +100,20 @@ def process_csv_files():
 
     print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
 
-    for csv_file in csv_files:
-        csv_file_path = os.path.join(CSV_LOG_DIR, csv_file)
-        print(f"📄 처리 중: {csv_file_path}")
-        csv_to_db_pgfutter(csv_file_path)
+    # 3️⃣ CSV 파일을 하나씩 데이터베이스에 적재
+    for csv_file_path in csv_files:
+        if os.path.exists(csv_file_path):
+            print(f"📄 처리 중: {csv_file_path}")
+            csv_to_db_pgfutter(csv_file_path)
+        else:
+            print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
 
-    # 모든 CSV 파일 처리 후 로그 파일 삭제
-    for csv_file in csv_files:
-        csv_file_path = os.path.join(CSV_LOG_DIR, csv_file)
-        try:
-            os.remove(csv_file_path)
-            print(f"🗑️ 삭제 완료: {csv_file_path}")
-        except Exception as e:
-            print(f"❌ 파일 삭제 실패: {csv_file_path} - {e}")
+    # 4️⃣ 모든 CSV 파일 처리 후 로그 파일 삭제
+    try:
+        os.remove(CSV_LOG_FILE)
+        print(f"🗑️ 로그 파일 삭제 완료: {CSV_LOG_FILE}")
+    except Exception as e:
+        print(f"❌ 로그 파일 삭제 실패: {e}")
 
     print("✅ 모든 CSV 파일 처리 및 로그 파일 삭제 완료")
 
