@@ -77,6 +77,12 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
         command = ["pgfutter", "csv", "--table", temp_table, csv_file_path]
         result = subprocess.run(command, capture_output=True, text=True)
 
+        print(f"🔍 pgfutter 실행 결과 (stdout): {result.stdout}")  # ✅ 추가
+        print(f"🔍 pgfutter 실행 결과 (stderr): {result.stderr}")  # ✅ 추가
+
+        if result.returncode != 0:
+            raise Exception(f"pgfutter 적재 실패: {result.stderr}")
+
         if result.returncode != 0:
             raise Exception(f"pgfutter 적재 실패: {result.stderr}")
 
@@ -145,7 +151,7 @@ def process_csv_files():
 
     # 4️⃣ 모든 CSV 파일 처리 후 로그 파일 삭제
     try:
-        os.remove(CSV_LOG_FILE)
+        # os.remove(CSV_LOG_FILE)
         print(f"🗑️ 로그 파일 삭제 완료: {CSV_LOG_FILE}")
     except Exception as e:
         print(f"❌ 로그 파일 삭제 실패: {e}")
