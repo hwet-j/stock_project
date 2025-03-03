@@ -90,9 +90,6 @@ def process_csv_files():
 
     CSV_LOG_DIR_FILES = CSV_LOG_DIR + "/csv_files.log"
 
-    if not CSV_LOG_DIR_FILES or not os.path.exists(CSV_LOG_DIR_FILES):
-        print(f"❌ CSV_LOG_DIR({CSV_LOG_DIR_FILES}) 경로를 찾을 수 없습니다.")
-        return
 
     # CSV_LOG_DIR에서 파일 목록 가져오기
     csv_files = sorted([f for f in os.listdir(CSV_LOG_DIR_FILES) if f.endswith(".csv")])
