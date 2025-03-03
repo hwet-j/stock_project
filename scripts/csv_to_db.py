@@ -55,7 +55,6 @@ def create_stock_data_table():
             conn.close()
 
 
-
 def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
     try:
@@ -69,13 +68,13 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
 
         # 1️⃣ 임시 테이블 생성 (기존 stock_data 테이블과 동일한 구조)
         create_temp_table_query = sql.SQL(f"""
-                    CREATE TABLE IF NOT EXISTS {temp_table} (LIKE {table_name} INCLUDING ALL);
-                """)
+            CREATE TABLE IF NOT EXISTS {temp_table} (LIKE {table_name} INCLUDING ALL);
+        """)
         cur.execute(create_temp_table_query)
         conn.commit()
 
-        # pgfutter 실행 명령어
-        command = ["pgfutter", "csv", csv_file_path]
+        # 2️⃣ pgfutter 실행 명령어 (📌 테이블 지정)
+        command = ["pgfutter", "csv", "--table", temp_table, csv_file_path]
         result = subprocess.run(command, capture_output=True, text=True)
 
         if result.returncode != 0:
@@ -90,9 +89,9 @@ def csv_to_db_pgfutter(csv_file_path, table_name="stock_data"):
 
         # 4️⃣ 검증된 데이터를 stock_data 테이블로 이동
         insert_query = sql.SQL(f"""
-                    INSERT INTO {table_name} SELECT * FROM {temp_table}
-                    ON CONFLICT (ticker, date) DO NOTHING;
-                """)
+            INSERT INTO {table_name} SELECT * FROM {temp_table}
+            ON CONFLICT (ticker, date) DO NOTHING;
+        """)
         cur.execute(insert_query)
         conn.commit()
 
