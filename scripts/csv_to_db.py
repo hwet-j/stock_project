@@ -103,14 +103,15 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     schema = "public"
     table_name = target_table + '_temp'
 
-    start_time = datetime.now()  # 시작 시간 기록
+    start_time = datetime.now()
 
-
+    # 파일 이름에서 ticker와 날짜 추출
     file_name = os.path.basename(csv_file)
     file_name_without_ext = os.path.splitext(file_name)[0]
     ticker, date_str = file_name_without_ext.split("_")
     date_formatted = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
 
+    # 헤더 수정된 CSV 파일 생성
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
 
@@ -118,75 +119,39 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
-        # 환경 변수 설정
-        env = os.environ.copy()
-        env["DB_NAME"] = DB_CONFIG["dbname"]
-        env["DB_USER"] = DB_CONFIG["user"]
-        env["DB_PASS"] = DB_CONFIG["password"]
-        env["DB_HOST"] = DB_CONFIG["host"]
-        env["DB_PORT"] = str(DB_CONFIG["port"])
-        env["DB_SCHEMA"] = schema
-        env["DB_TABLE"] = table_name
-
-        required_env_vars = [
-            "DB_NAME", "DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_SCHEMA", "DB_TABLE"
-        ]
-
-        # 현재 환경 변수 출력
-        print("🔹 [INFO] 현재 설정된 환경 변수 목록:")
-        for key, value in os.environ.items():
-            if "PASS" in key:
-                print(f"{key} = ********")  # 보안상 패스워드는 마스킹 처리
-            else:
-                print(f"{key} = {value}")
-
-        # 필수 환경 변수 체크
-        print("\n🔹 [INFO] 필수 환경 변수 설정 여부 확인:")
-        missing_vars = []
-        for var in required_env_vars:
-            if var in os.environ:
-                print(f"✅ {var} = {os.environ[var]}")
-            else:
-                print(f"❌ {var} 이(가) 설정되지 않았습니다!")
-                missing_vars.append(var)
-
-        # 최종 결과
-        if missing_vars:
-            print("\n❗ [ERROR] 일부 필수 환경 변수가 누락되었습니다:")
-            print(", ".join(missing_vars))
-        else:
-            print("\n✅ [SUCCESS] 모든 필수 환경 변수가 정상적으로 설정되었습니다!")
-
-        # ✅ (4) pgfutter 실행
+        # ✅ `pgfutter` 실행할 때 `_fixed.csv` 사용하도록 수정
         command = ["pgfutter", "csv", fixed_csv_file]
-        try:
-            result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
 
-            print(f"\n✅ [INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")
-            print(f"\n⚠️ [INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")
+        # ✅ 실행 시 오류 무시하지 않고 직접 출력하도록 변경
+        result = subprocess.run(command, check=False, capture_output=True, text=True)
 
-            cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
-            tables = cur.fetchall()
+        print(f"\n✅ [INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")
+        print(f"\n⚠️ [INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")
 
-            print("\n🔹 [INFO] 현재 존재하는 테이블 목록:")
-            for table in tables:
-                print(f"   - {table[0]}")
-
-        except subprocess.CalledProcessError as e:
-            print(f"\n❌ [ERROR] pgfutter 실행 실패: {e}")
-            log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "ERROR",
-                      f"{date_formatted}.{ticker} PGFUTTER EXECUTION ERROR", 0)
+        if result.returncode != 0:
+            print(f"\n❌ [ERROR] pgfutter 실행 실패: {result.stderr}")
+            log_to_db(start_time, date_formatted, ticker, "LOAD_TO_DB", "ERROR",
+                      f"PGFUTTER EXECUTION ERROR - {result.stderr}", 0)
             return False
 
-        # ✅ (5) 중복 데이터 제거 후, target_table로 이동
+        # ✅ 데이터 이동 (temp 테이블 → stock_data 테이블)
         cur.execute(f"""
-                    DELETE FROM {table_name} 
-                    WHERE (ticker, date::TEXT) IN (SELECT ticker, date::TEXT FROM {target_table});
-                """)
+            INSERT INTO {target_table} (ticker, date, open, high, low, close, volume)
+            SELECT ticker, date, open, high, low, close, volume FROM {table_name}
+            ON CONFLICT (ticker, date) DO NOTHING;
+        """)
         conn.commit()
 
+        # ✅ 임시 테이블 삭제
+        cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+        conn.commit()
+
+    except Exception as e:
+        print(f"\n❌ [ERROR] CSV to DB 적재 중 오류 발생: {e}")
+
     finally:
-        print("\n🔹 [INFO] 끗.")  # 종료 메시지
+        if conn:
+            conn.close()
         exit()
 
 
@@ -212,8 +177,11 @@ def process_csv_files():
     # 3️⃣ CSV 파일을 하나씩 데이터베이스에 적재
     for csv_file_path in csv_files:
         if os.path.exists(csv_file_path):
-            # print(f"📄 처리 중: {csv_file_path}")
-            csv_to_db_pgfutter(csv_file_path)
+            success = csv_to_db_pgfutter(csv_file_path)
+            if success:
+                print(f"✅ 처리 완료: {csv_file_path}")
+            else:
+                print(f"❌ 처리 실패: {csv_file_path}")
         else:
             print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
 
