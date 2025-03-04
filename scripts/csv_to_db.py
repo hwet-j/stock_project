@@ -62,6 +62,7 @@ def fix_csv_headers(input_file, output_file):
     """
     with open(input_file, newline='', encoding='utf-8') as infile, open(output_file, "w", newline='', encoding='utf-8') as outfile:
         reader = csv.reader(infile)
+        _ = next(reader)  # 헤더 한 줄 읽어보기
         writer = csv.writer(outfile)
 
         # (1) 헤더 수정: 공백을 언더스코어(_)로 변경
@@ -113,7 +114,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
-
+    exit()
     if not os.path.exists(fixed_csv_file):
         print(f"❌ [ERROR] CSV 파일이 존재하지 않습니다: {fixed_csv_file}")
     else:
