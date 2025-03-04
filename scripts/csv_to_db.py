@@ -12,11 +12,11 @@ load_dotenv()
 
 # PostgreSQL 연결 정보 설정
 DB_CONFIG = {
-    "host": os.getenv("POSTGRES_HOST"),
-    "port": os.getenv("POSTGRES_PORT"),
-    "dbname": os.getenv("POSTGRES_DB"),
-    "user": os.getenv("POSTGRES_USER"),
-    "password": os.getenv("POSTGRES_PASSWORD")
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT"),
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASS")
 }
 
 CSV_LOG_FILE = os.getenv("CSV_LOG_DIR") + "/csv_files.log"  # 로그 파일 경로
@@ -109,7 +109,29 @@ def log_to_db(execution_time, extraction_date, tickers, step, status, message, d
         if conn:
             conn.close()
 
-
+def create_temp_table():
+    """📌 stock_data_temp 테이블이 없으면 생성"""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS stock_data_temp (
+                ticker TEXT,
+                date DATE,
+                open NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                close NUMERIC,
+                volume BIGINT
+            );
+        """)
+        conn.commit()
+        print("✅ stock_data_temp 테이블이 확인되었습니다.")
+    except Exception as e:
+        print(f"❌ 테이블 생성 오류: {e}")
+    finally:
+        cur.close()
+        conn.close()
 
 def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
@@ -217,4 +239,5 @@ def process_csv_files():
 
 if __name__ == "__main__":
     create_stock_data_table()
+    create_temp_table()
     process_csv_files()
