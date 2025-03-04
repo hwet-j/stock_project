@@ -136,7 +136,8 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         print(f"적재 csv 파일 {fixed_csv_file}")
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
-            print(f"[INFO] pgfutter 실행 완료: {result.stdout}")
+            print(f"[INFO] pgfutter 실행 완료: {result.stdout}")  # 실행 성공 로그 출력
+            print(f"[INFO] pgfutter 오류 로그: {result.stderr}")  # stderr도 확인
             cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
             tables = cur.fetchall()
 
