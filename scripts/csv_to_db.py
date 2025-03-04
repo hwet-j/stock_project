@@ -119,7 +119,6 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         cur = conn.cursor()
 
         # 환경 변수 설정
-        """
         env = os.environ.copy()
         env["DB_NAME"] = DB_CONFIG["dbname"]
         env["DB_USER"] = DB_CONFIG["user"]
@@ -129,21 +128,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         env["DB_SCHEMA"] = schema
         env["DB_TABLE"] = table_name
 
-        # pgfutter 실행 명령어
-        command = [
-            "pgfutter", "csv",
-            fixed_csv_file  # 삽입할 CSV 파일
-        ]
-        """
-
-        # 환경 변수 설정 (pgfutter가 사용하는 PostgreSQL 환경 변수)
-        os.environ["PGUSER"] = DB_CONFIG["user"]
-        os.environ["PGPASSWORD"] = DB_CONFIG["password"]
-        os.environ["PGHOST"] = DB_CONFIG["host"]
-        os.environ["PGPORT"] = str(DB_CONFIG["port"])
-        os.environ["PGDATABASE"] = DB_CONFIG["dbname"]
-        os.environ["PGSCHEMA"] = schema
-        os.environ["PGTABLE"] = table_name
+        print(DB_CONFIG["dbname"], DB_CONFIG["user"], DB_CONFIG["password"])
 
         # pgfutter 실행 명령어
         command = [
@@ -152,8 +137,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         ]
 
         try:
-            # result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
-            result = subprocess.run(command, check=True, capture_output=True, text=True)
+            result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
 
             print(f"[INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")  # stdout 전체 출력
             print(f"[INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")  # stderr 전체 출력
