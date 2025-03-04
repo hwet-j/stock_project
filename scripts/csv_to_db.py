@@ -187,6 +187,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
     finally:
         print("\n🔹 [INFO] 끗.")  # 종료 메시지
+        exit()
 
 
 
