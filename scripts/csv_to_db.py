@@ -137,6 +137,13 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
             print(f"[INFO] pgfutter 실행 완료: {result.stdout}")
+            cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
+            tables = cur.fetchall()
+
+            print("[INFO] 현재 존재하는 테이블 목록:")
+            for table in tables:
+                print(f" - {table[0]}")
+
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] pgfutter 실행 실패: {e}")
             log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "ERROR",
