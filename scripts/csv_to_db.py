@@ -142,6 +142,8 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         os.environ["PGHOST"] = DB_CONFIG["host"]
         os.environ["PGPORT"] = str(DB_CONFIG["port"])
         os.environ["PGDATABASE"] = DB_CONFIG["dbname"]
+        os.environ["PGSCHEMA"] = schema
+        os.environ["PGTABLE"] = table_name
 
         # pgfutter 실행 명령어
         command = [
