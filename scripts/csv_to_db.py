@@ -24,6 +24,10 @@ CSV_LOG_FILE = os.getenv("CSV_LOG_DIR") + "/csv_files.log"  # 로그 파일 경�
 
 def create_stock_data_table():
     """ 📊 stock_data 테이블이 없으면 자동 생성하는 함수 """
+
+    print("DB_HOST:", DB_CONFIG["host"])
+
+
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
@@ -111,7 +115,6 @@ def log_to_db(execution_time, extraction_date, tickers, step, status, message, d
 
 def create_temp_table():
     """📌 stock_data_temp 테이블이 없으면 생성"""
-    print("DB_HOST:", DB_CONFIG["host"])
 
     try:
         conn = psycopg2.connect(**DB_CONFIG)
