@@ -184,10 +184,6 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
 def process_csv_files():
     """📂 로그 파일에서 CSV 목록을 읽어 처리"""
-    if not os.path.exists(CSV_LOG_FILE):
-        print(f"❌ CSV 로그 파일이 존재하지 않습니다: {CSV_LOG_FILE}")
-        return
-
     with open(CSV_LOG_FILE, "r") as file:
         csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
