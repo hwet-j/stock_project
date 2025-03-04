@@ -149,7 +149,8 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         ]
 
         try:
-            result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
+            # result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
 
             print(f"[INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")  # stdout 전체 출력
             print(f"[INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")  # stderr 전체 출력
