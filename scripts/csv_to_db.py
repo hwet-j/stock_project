@@ -119,6 +119,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         cur = conn.cursor()
 
         # 환경 변수 설정
+        """
         env = os.environ.copy()
         env["DB_NAME"] = DB_CONFIG["dbname"]
         env["DB_USER"] = DB_CONFIG["user"]
@@ -133,11 +134,26 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
             "pgfutter", "csv",
             fixed_csv_file  # 삽입할 CSV 파일
         ]
-        print(f"적재 csv 파일 {fixed_csv_file}")
+        """
+
+        command = [
+            "pgfutter", "csv",
+            "--host", DB_CONFIG["host"],
+            "--port", str(DB_CONFIG["port"]),
+            "--user", DB_CONFIG["user"],
+            "--pw", DB_CONFIG["password"],
+            "--db", DB_CONFIG["dbname"],
+            "--schema", schema,
+            "--table", table_name,
+            fixed_csv_file
+        ]
+
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
-            print(f"[INFO] pgfutter 실행 완료: {result.stdout}")  # 실행 성공 로그 출력
-            print(f"[INFO] pgfutter 오류 로그: {result.stderr}")  # stderr도 확인
+
+            print(f"[INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")  # stdout 전체 출력
+            print(f"[INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")  # stderr 전체 출력
+
             cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
             tables = cur.fetchall()
 
@@ -218,7 +234,7 @@ def process_csv_files():
     # 3️⃣ CSV 파일을 하나씩 데이터베이스에 적재
     for csv_file_path in csv_files:
         if os.path.exists(csv_file_path):
-            print(f"📄 처리 중: {csv_file_path}")
+            # print(f"📄 처리 중: {csv_file_path}")
             csv_to_db_pgfutter(csv_file_path)
         else:
             print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
