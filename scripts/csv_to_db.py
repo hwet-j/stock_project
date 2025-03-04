@@ -56,13 +56,27 @@ def create_stock_data_table():
             conn.close()
 
 
+def print_csv(file_path, encoding="utf-8"):
+    """
+    CSV 파일을 출력하는 함수 (내용 확인용)
+    """
+    print(f"\n🔍 [INFO] CSV 파일 출력: {file_path}")
+    try:
+        with open(file_path, newline='', encoding=encoding) as f:
+            reader = csv.reader(f)
+            for row in reader:
+                print(row)
+    except Exception as e:
+        print(f"❌ [ERROR] CSV 출력 실패: {e}")
+
 def fix_csv_headers(input_file, output_file):
     """
     CSV 파일의 헤더에서 공백을 언더스코어(_)로 변경
     """
+    print_csv(input_file)
+
     with open(input_file, newline='', encoding='utf-8') as infile, open(output_file, "w", newline='', encoding='utf-8') as outfile:
         reader = csv.reader(infile)
-        _ = next(reader)  # 헤더 한 줄 읽어보기
         writer = csv.writer(outfile)
 
         # (1) 헤더 수정: 공백을 언더스코어(_)로 변경
@@ -73,6 +87,9 @@ def fix_csv_headers(input_file, output_file):
         # (2) 데이터 그대로 복사
         for row in reader:
             writer.writerow(row)
+
+    print_csv(output_file)
+
 
 # 로그 기록 함수
 def log_to_db(execution_time, extraction_date, tickers, step, status, message, duration_seconds):
