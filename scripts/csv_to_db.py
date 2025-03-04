@@ -133,7 +133,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
             "pgfutter", "csv",
             fixed_csv_file  # 삽입할 CSV 파일
         ]
-
+        print(f"적재 csv 파일 {fixed_csv_file}")
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
             print(f"[INFO] pgfutter 실행 완료: {result.stdout}")
