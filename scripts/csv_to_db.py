@@ -128,6 +128,10 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
 
+    with open(fixed_csv_file, newline='', encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            print(row)
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
