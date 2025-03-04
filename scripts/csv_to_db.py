@@ -128,77 +128,53 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         env["DB_SCHEMA"] = schema
         env["DB_TABLE"] = table_name
 
-        print(DB_CONFIG["dbname"], DB_CONFIG["user"], DB_CONFIG["password"])
+        # ✅ (1) 설정된 환경 변수 출력 (비밀번호 제외)
+        print("\n🔹 [INFO] 현재 설정된 환경 변수:")
+        for key, value in env.items():
+            if "PASSWORD" in key:
+                print(f"   {key} = ********")
+            else:
+                print(f"   {key} = {value}")
 
-        # pgfutter 실행 명령어
-        command = [
-            "pgfutter", "csv",
-            fixed_csv_file  # 삽입할 CSV 파일
-        ]
+        # ✅ (2) 실제 환경 변수가 반영되었는지 확인
+        print("\n🔹 [INFO] 환경 변수 테스트 (`env` 실행):")
+        subprocess.run(["env"], env=env)
 
+        # ✅ (3) pgfutter 실행 명령어 출력
+        print("\n🔹 [INFO] 실행할 pgfutter 명령어:")
+        print(f"   {' '.join(['pgfutter', 'csv', fixed_csv_file])}")
+
+        # ✅ (4) pgfutter 실행
+        command = ["pgfutter", "csv", fixed_csv_file]
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
 
-            print(f"[INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")  # stdout 전체 출력
-            print(f"[INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")  # stderr 전체 출력
+            print(f"\n✅ [INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")
+            print(f"\n⚠️ [INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")
 
             cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
             tables = cur.fetchall()
 
-            print("[INFO] 현재 존재하는 테이블 목록:")
+            print("\n🔹 [INFO] 현재 존재하는 테이블 목록:")
             for table in tables:
-                print(f" - {table[0]}")
+                print(f"   - {table[0]}")
 
         except subprocess.CalledProcessError as e:
-            print(f"[ERROR] pgfutter 실행 실패: {e}")
+            print(f"\n❌ [ERROR] pgfutter 실행 실패: {e}")
             log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "ERROR",
                       f"{date_formatted}.{ticker} PGFUTTER EXECUTION ERROR", 0)
-
             return False
 
-        # ✅ (2) 중복 데이터 제거 후, target_table로 이동
+        # ✅ (5) 중복 데이터 제거 후, target_table로 이동
         cur.execute(f"""
-                DELETE FROM {table_name} 
-                WHERE (ticker, date::TEXT) IN (SELECT ticker, date::TEXT FROM {target_table});
-            """)
+                    DELETE FROM {table_name} 
+                    WHERE (ticker, date::TEXT) IN (SELECT ticker, date::TEXT FROM {target_table});
+                """)
         conn.commit()
-
-        cur.execute(f"""
-                INSERT INTO {target_table} (date, open, high, low, close, volume, dividends, stock_splits, ticker)
-                SELECT 
-                    date::DATE, 
-                    NULLIF(REPLACE(open, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(high, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(low, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(close, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(volume, '\r', ''), '')::NUMERIC, 
-                    REPLACE(ticker, '\r', '')
-                FROM {table_name};
-            """)
-        conn.commit()
-
-        print(f"[INFO] 데이터 `{target_table}`로 이동 완료")
-        duration_seconds = (datetime.now() - start_time).total_seconds()
-        log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "SUCCESS", f"{date_formatted}.{ticker} LOAD TO DB SUCCESS", duration_seconds)
-
-        # ✅ (3) 원본 테이블 삭제
-        cur.execute(f"DROP TABLE {table_name};")
-        conn.commit()
-        # print(f"[INFO] 자동 생성된 테이블 `{table_name}` 삭제 완료")
-
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print(f"[Error] pgfutter 실행 실패: {e}")
-        return False
-
-    except Exception as e:
-        print(f"[Error] 데이터베이스 작업 중 오류 발생: {e}")
-        return False
 
     finally:
-        if conn:
-            conn.close()
+        print("\n🔹 [INFO] 끗.")  # 종료 메시지
+
 
 
 def process_csv_files():
