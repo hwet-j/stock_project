@@ -235,7 +235,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                     )
                 else:
                     # 📂 전체 데이터 CSV 저장
-                    all_file_path = save_csv(stock_data, extract_date)
+                    # all_file_path = save_csv(stock_data, extract_date)
 
                     #  🔁 ticker별 CSV 저장
                     for ticker in tickers:
