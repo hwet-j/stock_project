@@ -119,24 +119,17 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         cur = conn.cursor()
 
         # 환경 변수 설정
-        env = os.environ.copy()
-        env["DB_NAME"] = DB_CONFIG["dbname"]
-        env["DB_USER"] = DB_CONFIG["user"]
-        env["DB_PASS"] = DB_CONFIG["password"]
-        env["DB_HOST"] = DB_CONFIG["host"]
-        env["DB_PORT"] = str(DB_CONFIG["port"])
-        env["DB_SCHEMA"] = schema
-        env["DB_TABLE"] = table_name
+        os.environ["DB_NAME"] = DB_CONFIG["dbname"]
+        os.environ["DB_USER"] = DB_CONFIG["user"]
+        os.environ["DB_PASS"] = DB_CONFIG["password"]
+        os.environ["DB_HOST"] = DB_CONFIG["host"]
+        os.environ["DB_PORT"] = str(DB_CONFIG["port"])
+        os.environ["DB_SCHEMA"] = schema
+        os.environ["DB_TABLE"] = table_name
 
         required_env_vars = [
             "DB_NAME", "DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_SCHEMA", "DB_TABLE"
         ]
-
-        print("POSTGRES_DB:", os.getenv("POSTGRES_DB"))
-        print("POSTGRES_USER:", os.getenv("POSTGRES_USER"))
-        print("POSTGRES_PASSWORD:", os.getenv("POSTGRES_PASSWORD"))
-        print("POSTGRES_HOST:", os.getenv("POSTGRES_HOST"))
-        print("POSTGRES_PORT:", os.getenv("POSTGRES_PORT"))
 
         # 현재 환경 변수 출력
         print("🔹 [INFO] 현재 설정된 환경 변수 목록:")
@@ -166,7 +159,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         # ✅ (4) pgfutter 실행
         command = ["pgfutter", "csv", fixed_csv_file]
         try:
-            result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
+            result = subprocess.run(command, check=True, env=os.environ, capture_output=True, text=True)
 
             print(f"\n✅ [INFO] pgfutter 실행 완료 (stdout):\n{result.stdout}")
             print(f"\n⚠️ [INFO] pgfutter 오류 로그 (stderr):\n{result.stderr}")
