@@ -146,7 +146,6 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         # pgfutter 실행 명령어
         command = [
             "pgfutter", "csv",
-            "--schema", schema,  # 스키마 지정 (필요한 경우)
             fixed_csv_file  # 삽입할 CSV 파일
         ]
 
