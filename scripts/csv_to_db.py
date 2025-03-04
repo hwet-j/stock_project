@@ -138,14 +138,9 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
         command = [
             "pgfutter", "csv",
-            "--host", DB_CONFIG["host"],
-            "--port", str(DB_CONFIG["port"]),
-            "--user", DB_CONFIG["user"],
-            "--pw", DB_CONFIG["password"],
-            "--db", DB_CONFIG["dbname"],
-            "--schema", schema,
-            "--table", table_name,
-            fixed_csv_file
+            "--db",
+            f"postgres://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}",
+            fixed_csv_file  # 삽입할 CSV 파일
         ]
 
         try:
