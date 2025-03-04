@@ -114,6 +114,16 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
 
+    if not os.path.exists(fixed_csv_file):
+        print(f"❌ [ERROR] CSV 파일이 존재하지 않습니다: {fixed_csv_file}")
+    else:
+        file_size = os.path.getsize(fixed_csv_file)
+        print(f"✅ [INFO] CSV 파일 확인: {fixed_csv_file} (크기: {file_size} bytes)")
+
+        with open(fixed_csv_file, "r", encoding="utf-8") as f:
+            first_lines = [next(f) for _ in range(5)]
+        print("\n".join(first_lines))
+
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
@@ -127,36 +137,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         os.environ["DB_SCHEMA"] = schema
         os.environ["DB_TABLE"] = table_name
 
-        required_env_vars = [
-            "DB_NAME", "DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_SCHEMA", "DB_TABLE"
-        ]
-
-        # 현재 환경 변수 출력
-        print("🔹 [INFO] 현재 설정된 환경 변수 목록:")
-        for key, value in os.environ.items():
-            if "PASS" in key:
-                print(f"{key} = ********")  # 보안상 패스워드는 마스킹 처리
-            else:
-                print(f"{key} = {value}")
-
-        # 필수 환경 변수 체크
-        print("\n🔹 [INFO] 필수 환경 변수 설정 여부 확인:")
-        missing_vars = []
-        for var in required_env_vars:
-            if var in os.environ:
-                print(f"✅ {var} = {os.environ[var]}")
-            else:
-                print(f"❌ {var} 이(가) 설정되지 않았습니다!")
-                missing_vars.append(var)
-
-        # 최종 결과
-        if missing_vars:
-            print("\n❗ [ERROR] 일부 필수 환경 변수가 누락되었습니다:")
-            print(", ".join(missing_vars))
-        else:
-            print("\n✅ [SUCCESS] 모든 필수 환경 변수가 정상적으로 설정되었습니다!")
-
-        # ✅ (4) pgfutter 실행
+        # ✅ pgfutter 실행
         command = ["pgfutter", "csv", fixed_csv_file]
         try:
             result = subprocess.run(command, check=True, env=os.environ, capture_output=True, text=True)
