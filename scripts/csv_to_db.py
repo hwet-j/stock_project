@@ -128,16 +128,6 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
 
-    if not os.path.exists(fixed_csv_file):
-        print(f"❌ [ERROR] CSV 파일이 존재하지 않습니다: {fixed_csv_file}")
-    else:
-        file_size = os.path.getsize(fixed_csv_file)
-        print(f"✅ [INFO] CSV 파일 확인: {fixed_csv_file} (크기: {file_size} bytes)")
-
-        with open(fixed_csv_file, "r", encoding="utf-8") as f:
-            first_lines = [next(f) for _ in range(5)]
-        print("\n".join(first_lines))
-
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
