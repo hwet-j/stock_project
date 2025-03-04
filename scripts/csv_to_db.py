@@ -73,38 +73,29 @@ def fix_csv_headers(input_file, output_file):
         for row in reader:
             writer.writerow(row)
 
-def log_to_db(step, log_type, ticker, message, from_date=None, to_date=None, start_time=None, end_time=None, result=None):
-    """
-    변환 과정의 로그를 stock_data_log 테이블에 저장
-
-    :param step: 단계 (예: 'Parquet 변환', 'CSV 삭제')
-    :param log_type: 로그 레벨 (INFO, ERROR)
-    :param ticker: 종목 코드 (없으면 None)
-    :param message: 상세 메시지
-    :param from_date: 데이터 조회 시작 날짜 (없으면 None)
-    :param to_date: 데이터 조회 종료 날짜 (없으면 None)
-    :param start_time: 프로세스 시작 시간
-    :param end_time: 프로세스 종료 시간
-    :param result: 변환 결과 (성공 / 실패)
-    """
+# 로그 기록 함수
+def log_to_db(execution_time, extraction_date, tickers, step, status, message, duration_seconds):
     conn = None
     try:
         conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-
-        query = """
-        INSERT INTO stock_data_log (step, log_type, ticker, message, from_date, to_date, start_time, end_time, result, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
-        """
-        cur.execute(query, (step, log_type, ticker, message, from_date, to_date, start_time, end_time, result))
-
-        conn.commit()
-        cur.close()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO stock_data_log 
+                (execution_time, extraction_date, tickers, step, status, message, duration_seconds) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (execution_time, extraction_date, tickers, step, status, message, duration_seconds)
+            )
+            conn.commit()
+            # print(f"[INFO] 로그 저장 완료: {step} - {status}")
     except Exception as e:
-        print(f"[DB 로그 오류] {e}")
+        print(f"[ERROR] 로그 저장 실패: {e}")
     finally:
         if conn:
             conn.close()
+
+
 
 def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     """ 📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재하는 함수 """
@@ -112,7 +103,14 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
     schema = "public"
     table_name = target_table + '_temp'
 
-    #
+    start_time = datetime.now()  # 시작 시간 기록
+
+
+    file_name = os.path.basename(csv_file)
+    file_name_without_ext = os.path.splitext(file_name)[0]
+    ticker, date_str = file_name_without_ext.split("_")
+    date_formatted = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
 
@@ -138,11 +136,12 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
         try:
             result = subprocess.run(command, check=True, env=env, capture_output=True, text=True)
-            print(f"[INFO] CSV 데이터를 '{schema}.{table_name}' 테이블에 저장 완료")
-            log_to_db("CSV 적재", "INFO", "ALL", f"pgfutter 실행 완료: {result.stdout}")
+            print(f"[INFO] pgfutter 실행 완료: {result.stdout}")
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] pgfutter 실행 실패: {e}")
-            log_to_db("CSV 적재", "ERROR", "ALL", f"pgfutter 실행 실패: {e.stderr}")
+            log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "ERROR",
+                      f"{date_formatted}.{ticker} PGFUTTER EXECUTION ERROR", 0)
+
             return False
 
         # ✅ (2) 중복 데이터 제거 후, target_table로 이동
@@ -151,7 +150,6 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
                 WHERE (ticker, date::TEXT) IN (SELECT ticker, date::TEXT FROM {target_table});
             """)
         conn.commit()
-        # print(f"[INFO] 중복 데이터 제거 완료")
 
         cur.execute(f"""
                 INSERT INTO {target_table} (date, open, high, low, close, volume, dividends, stock_splits, ticker)
@@ -162,14 +160,14 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
                     NULLIF(REPLACE(low, '\r', ''), '')::NUMERIC, 
                     NULLIF(REPLACE(close, '\r', ''), '')::NUMERIC, 
                     NULLIF(REPLACE(volume, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(dividends, '\r', ''), '')::NUMERIC, 
-                    NULLIF(REPLACE(stock_splits, '\r', ''), '')::NUMERIC, 
                     REPLACE(ticker, '\r', '')
                 FROM {table_name};
             """)
         conn.commit()
 
         print(f"[INFO] 데이터 `{target_table}`로 이동 완료")
+        duration_seconds = (datetime.now() - start_time).total_seconds()
+        log_to_db(start_time, date_formatted, ticker, f"LOAD_TO_DB", "SUCCESS", f"{date_formatted}.{ticker} LOAD TO DB SUCCESS", duration_seconds)
 
         # ✅ (3) 원본 테이블 삭제
         cur.execute(f"DROP TABLE {table_name};")
