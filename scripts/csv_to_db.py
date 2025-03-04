@@ -136,10 +136,17 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         ]
         """
 
+        # 환경 변수 설정 (pgfutter가 사용하는 PostgreSQL 환경 변수)
+        os.environ["PGUSER"] = DB_CONFIG["user"]
+        os.environ["PGPASSWORD"] = DB_CONFIG["password"]
+        os.environ["PGHOST"] = DB_CONFIG["host"]
+        os.environ["PGPORT"] = str(DB_CONFIG["port"])
+        os.environ["PGDATABASE"] = DB_CONFIG["dbname"]
+
+        # pgfutter 실행 명령어
         command = [
             "pgfutter", "csv",
-            "--db",
-            f"postgres://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}",
+            "--schema", schema,  # 스키마 지정 (필요한 경우)
             fixed_csv_file  # 삽입할 CSV 파일
         ]
 
