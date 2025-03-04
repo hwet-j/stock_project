@@ -179,7 +179,6 @@ def save_csv(data, extract_date, ticker=None):
                   duration_seconds)
         return None
 
-import subprocess
 
 
 

@@ -55,11 +55,8 @@ def create_stock_data_table():
         if conn:
             conn.close()
 
-
+"""
 def print_csv(file_path, encoding="utf-8"):
-    """
-    CSV 파일을 출력하는 함수 (내용 확인용)
-    """
     print(f"\n🔍 [INFO] CSV 파일 출력: {file_path}")
     try:
         with open(file_path, newline='', encoding=encoding) as f:
@@ -68,13 +65,13 @@ def print_csv(file_path, encoding="utf-8"):
                 print(row)
     except Exception as e:
         print(f"❌ [ERROR] CSV 출력 실패: {e}")
+"""
+
 
 def fix_csv_headers(input_file, output_file):
     """
     CSV 파일의 헤더에서 공백을 언더스코어(_)로 변경
     """
-    print_csv(input_file)
-
     with open(input_file, newline='', encoding='utf-8') as infile, open(output_file, "w", newline='', encoding='utf-8') as outfile:
         reader = csv.reader(infile)
         writer = csv.writer(outfile)
@@ -88,7 +85,6 @@ def fix_csv_headers(input_file, output_file):
         for row in reader:
             writer.writerow(row)
 
-    print_csv(output_file)
 
 
 # 로그 기록 함수
@@ -131,7 +127,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
     fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
     fix_csv_headers(csv_file, fixed_csv_file)
-    exit()
+
     if not os.path.exists(fixed_csv_file):
         print(f"❌ [ERROR] CSV 파일이 존재하지 않습니다: {fixed_csv_file}")
     else:
