@@ -128,21 +128,34 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         env["DB_SCHEMA"] = schema
         env["DB_TABLE"] = table_name
 
-        # ✅ (1) 설정된 환경 변수 출력 (비밀번호 제외)
-        print("\n🔹 [INFO] 현재 설정된 환경 변수:")
-        for key, value in env.items():
-            if "PASSWORD" in key:
-                print(f"   {key} = ********")
+        required_env_vars = [
+            "DB_NAME", "DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_SCHEMA", "DB_TABLE"
+        ]
+
+        # 현재 환경 변수 출력
+        print("🔹 [INFO] 현재 설정된 환경 변수 목록:")
+        for key, value in os.environ.items():
+            if "PASS" in key:
+                print(f"{key} = ********")  # 보안상 패스워드는 마스킹 처리
             else:
-                print(f"   {key} = {value}")
+                print(f"{key} = {value}")
 
-        # ✅ (2) 실제 환경 변수가 반영되었는지 확인
-        print("\n🔹 [INFO] 환경 변수 테스트 (`env` 실행):")
-        subprocess.run(["env"], env=env)
+        # 필수 환경 변수 체크
+        print("\n🔹 [INFO] 필수 환경 변수 설정 여부 확인:")
+        missing_vars = []
+        for var in required_env_vars:
+            if var in os.environ:
+                print(f"✅ {var} = {os.environ[var]}")
+            else:
+                print(f"❌ {var} 이(가) 설정되지 않았습니다!")
+                missing_vars.append(var)
 
-        # ✅ (3) pgfutter 실행 명령어 출력
-        print("\n🔹 [INFO] 실행할 pgfutter 명령어:")
-        print(f"   {' '.join(['pgfutter', 'csv', fixed_csv_file])}")
+        # 최종 결과
+        if missing_vars:
+            print("\n❗ [ERROR] 일부 필수 환경 변수가 누락되었습니다:")
+            print(", ".join(missing_vars))
+        else:
+            print("\n✅ [SUCCESS] 모든 필수 환경 변수가 정상적으로 설정되었습니다!")
 
         # ✅ (4) pgfutter 실행
         command = ["pgfutter", "csv", fixed_csv_file]
