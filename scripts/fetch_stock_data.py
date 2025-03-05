@@ -278,8 +278,8 @@ if __name__ == "__main__":
 
     # 🆕 커맨드라인 인자 처리
     parser = argparse.ArgumentParser(description="주식 데이터 수집기")
-    parser.add_argument("from_date", type=str, help="시작 날짜 (YYYY-MM-DD)")
-    parser.add_argument("to_date", type=str, help="종료 날짜 (YYYY-MM-DD)")
+    parser.add_argument("from_date", type=str, nargs="?", default=None, help="시작 날짜 (YYYY-MM-DD)")
+    parser.add_argument("to_date", type=str, nargs="?", default=None, help="종료 날짜 (YYYY-MM-DD)")
 
     args = parser.parse_args()
 
@@ -289,7 +289,6 @@ if __name__ == "__main__":
         to_date = args.to_date
     else:
         from_date, to_date = get_default_dates()
-        # print(f"[INFO] 날짜 인자가 없어서 기본값으로 설정: {from_date} ~ {to_date}")
 
     fetch_stock_data(tickers, from_date, to_date)
 

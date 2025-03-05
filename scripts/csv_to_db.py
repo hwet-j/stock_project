@@ -187,34 +187,59 @@ def drop_temp_table():
             conn.close()
 
 
-def process_csv_files():
+def process_csv_files(csv_file_path=None):
     """📂 로그 파일에서 CSV 목록을 읽어 처리"""
-    with open(CSV_LOG_FILE, "r") as file:
-        csv_files = [line.strip() for line in file.readlines() if line.strip()]
-
-    if not csv_files:
-        print("📂 적재할 CSV 파일이 없습니다.")
-        return
-
-    print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
-
-    for csv_file_path in csv_files:
+    if csv_file_path:
+        # 인자가 전달되었을 때: 단일 CSV 파일 처리
         if os.path.exists(csv_file_path):
-            # Step 1: 임시 테이블에 CSV 파일 적재
             success = csv_to_temp_table(csv_file_path)
             if success:
-                # Step 2: 임시 테이블에서 실제 테이블로 데이터 이동
                 move_data_from_temp_to_main()
-
-                # Step 3: 임시 테이블 삭제
                 drop_temp_table()
-                # print(f"✅ {csv_file_path} 처리 완료")
         else:
             print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
+    else:
+        with open(CSV_LOG_FILE, "r") as file:
+            csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
-    print("✅ 모든 CSV 파일 처리 완료")
+        if not csv_files:
+            print("📂 적재할 CSV 파일이 없습니다.")
+            return
+
+        print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
+
+        for csv_file in csv_files:
+            if os.path.exists(csv_file):
+                # Step 1: 임시 테이블에 CSV 파일 적재
+                success = csv_to_temp_table(csv_file)
+                if success:
+                    # Step 2: 임시 테이블에서 실제 테이블로 데이터 이동
+                    move_data_from_temp_to_main()
+
+                    # Step 3: 임시 테이블 삭제
+                    drop_temp_table()
+            else:
+                print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
+
+        print("✅ 모든 CSV 파일 처리 완료")
+
+        try:
+            os.remove(CSV_LOG_FILE)
+        except Exception as e:
+            print(f"⚠️ 로그 파일 삭제 실패: {e}")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="CSV 파일을 PostgreSQL에 적재하는 스크립트")
+    parser.add_argument("csv_file", type=str, help="처리할 CSV 파일 경로")
+
+    args = parser.parse_args()
+
     create_stock_data_table()
-    process_csv_files()
+
+    if args.csv_file:
+        # 인자가 전달되면 해당 파일을 처리
+        process_csv_files(args.csv_file)
+    else:
+        # 인자가 없으면 log_file에서 처리할 파일을 읽어 처리
+        process_csv_files()
