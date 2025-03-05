@@ -87,25 +87,7 @@ def create_temp_table():
         if conn:
             conn.close()
 
-
-def fix_csv_headers(input_file, output_file):
-    """CSV 파일 헤더 공백을 언더스코어(_)로 변경"""
-    with open(input_file, newline='', encoding='utf-8') as infile, open(output_file, "w", newline='',
-                                                                        encoding='utf-8') as outfile:
-        reader = csv.reader(infile)
-        writer = csv.writer(outfile)
-
-        # 헤더 수정 (공백 → "_")
-        header = next(reader)
-        new_header = [col.replace(" ", "_") for col in header]
-        writer.writerow(new_header)
-
-        # 데이터 그대로 복사
-        for row in reader:
-            writer.writerow(row)
-
-
-def csv_to_db_copy(csv_file, target_table="stock_data"):
+def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
     """📥 psql COPY 명령어를 이용하여 CSV 데이터를 PostgreSQL에 적재"""
     if not os.path.exists(csv_file):
         print(f"❌ CSV 파일이 존재하지 않습니다: {csv_file}")
@@ -122,10 +104,6 @@ def csv_to_db_copy(csv_file, target_table="stock_data"):
         print(f"❌ 파일명에서 ticker와 날짜를 추출할 수 없습니다: {file_name}")
         return False
 
-    # CSV 헤더 수정
-    fixed_csv_file = csv_file.replace(".csv", "_fixed.csv")
-    fix_csv_headers(csv_file, fixed_csv_file)
-
     conn = None
     cur = None
     try:
@@ -139,7 +117,7 @@ def csv_to_db_copy(csv_file, target_table="stock_data"):
         """
 
         # 파일에서 데이터를 읽어 COPY 명령어 실행
-        with open(fixed_csv_file, "r", encoding="utf-8") as f:
+        with open(csv_file, "r", encoding="utf-8") as f:
             cur.copy_expert(sql=copy_query, file=f)
 
         conn.commit()
@@ -157,6 +135,58 @@ def csv_to_db_copy(csv_file, target_table="stock_data"):
 
     return True
 
+
+def move_data_from_temp_to_main():
+    """📤 stock_data_temp 테이블에서 stock_data 테이블로 데이터 이동"""
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        # 임시 테이블에서 실제 테이블로 데이터 이동
+        move_data_query = """
+        INSERT INTO stock_data (ticker, date, open, high, low, close, volume)
+        SELECT ticker, date, open, high, low, close, volume
+        FROM stock_data_temp
+        ON CONFLICT (ticker, date) DO NOTHING;
+        """
+
+        cur.execute(move_data_query)
+        conn.commit()
+        print("✅ 임시 테이블에서 실제 테이블로 데이터가 성공적으로 이동되었습니다.")
+
+    except Exception as e:
+        print(f"❌ 데이터 이동 실패: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def drop_temp_table():
+    """📂 stock_data_temp 테이블 삭제"""
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        # 임시 테이블 삭제
+        drop_table_query = "DROP TABLE IF EXISTS stock_data_temp;"
+        cur.execute(drop_table_query)
+        conn.commit()
+        print("✅ 임시 테이블이 삭제되었습니다.")
+
+    except Exception as e:
+        print(f"❌ 임시 테이블 삭제 실패: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 def process_csv_files():
@@ -176,8 +206,16 @@ def process_csv_files():
 
     for csv_file_path in csv_files:
         if os.path.exists(csv_file_path):
-            success = csv_to_db_copy(csv_file_path)
+            # Step 1: 임시 테이블에 CSV 파일 적재
+            success = csv_to_temp_table(csv_file_path)
             if success:
+                print(f"✅ {csv_file_path} 임시 테이블에 데이터가 적재되었습니다.")
+
+                # Step 2: 임시 테이블에서 실제 테이블로 데이터 이동
+                move_data_from_temp_to_main()
+
+                # Step 3: 임시 테이블 삭제
+                drop_temp_table()
                 print(f"✅ {csv_file_path} 처리 완료")
         else:
             print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
