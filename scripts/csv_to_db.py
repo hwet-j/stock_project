@@ -18,7 +18,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS")
 }
 
-CSV_LOG_FILE = os.getenv("CSV_LOG_DIR")
+CSV_LOG_PATH = os.getenv("CSV_LOG_DIR")
 
 TICKER_PATH = os.getenv("TICKER_FILE_PATH")
 
@@ -185,12 +185,10 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 
 def process_csv_files():
     """📂 로그 파일에서 CSV 목록을 읽어 처리"""
-    print("rrrrrrrrr: ", CSV_LOG_FILE)
-    print("TICKER_PATH: ", TICKER_PATH)
-    if not os.path.exists(CSV_LOG_FILE):
-        print(f"❌ CSV 로그 파일이 존재하지 않습니다: {CSV_LOG_FILE}")
+    if not os.path.exists(CSV_LOG_PATH):
+        print(f"❌ CSV 로그 디렉토리가 존재하지 않습니다: {CSV_LOG_PATH}")
         return
-
+    CSV_LOG_FILE = CSV_LOG_PATH + "/csv_files.log"
     with open(CSV_LOG_FILE, "r") as file:
         csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
