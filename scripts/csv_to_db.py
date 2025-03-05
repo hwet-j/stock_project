@@ -96,6 +96,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
     # 파일 이름에서 ticker와 날짜 추출
     file_name = os.path.basename(csv_file)
     file_name_without_ext = os.path.splitext(file_name)[0]
+    print("파일명 : ", file_name)
 
     try:
         ticker, date_str = file_name_without_ext.split("_")
@@ -112,12 +113,14 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
 
         # COPY 명령어를 사용하여 CSV 데이터를 테이블에 적재
         copy_query = f"""
-        COPY {target_table} (ticker, date, open, high, low, close, volume)
+        COPY {target_table} (date, open, high, low, close, volume, ticker)
         FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
         """
 
         # 파일에서 데이터를 읽어 COPY 명령어 실행
         with open(csv_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            print(content)
             cur.copy_expert(sql=copy_query, file=f)
 
         conn.commit()
@@ -132,7 +135,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
             cur.close()
         if conn:
             conn.close()
-
+        exit()
     return True
 
 
