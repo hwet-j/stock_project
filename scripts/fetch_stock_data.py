@@ -274,7 +274,7 @@ def fetch_stock_data(tickers, from_date, to_date):
 
 if __name__ == "__main__":
     create_log_table()
-
+    print("TICKER_PATH : ", TICKER_PATH)
     tickers = load_tickers_from_file(TICKER_PATH)
 
     # 🆕 커맨드라인 인자 처리

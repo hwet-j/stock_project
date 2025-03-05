@@ -20,6 +20,7 @@ DB_CONFIG = {
 
 CSV_LOG_FILE = os.getenv("CSV_LOG_DIR")
 
+TICKER_PATH = os.getenv("TICKER_FILE_PATH")
 
 def create_stock_data_table():
     """📊 stock_data 테이블 생성 (없으면 생성)"""
@@ -185,6 +186,7 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
 def process_csv_files():
     """📂 로그 파일에서 CSV 목록을 읽어 처리"""
     print("rrrrrrrrr: ", CSV_LOG_FILE)
+    print("TICKER_PATH: ", TICKER_PATH)
     if not os.path.exists(CSV_LOG_FILE):
         print(f"❌ CSV 로그 파일이 존재하지 않습니다: {CSV_LOG_FILE}")
         return
