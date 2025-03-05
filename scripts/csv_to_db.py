@@ -231,7 +231,7 @@ def process_csv_files(csv_file_path=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CSV 파일을 PostgreSQL에 적재하는 스크립트")
-    parser.add_argument("csv_file", type=str, help="처리할 CSV 파일 경로")
+    parser.add_argument("csv_file", type=str, help="처리할 CSV 파일 경로", nargs="?", default=None)
 
     args = parser.parse_args()
 
