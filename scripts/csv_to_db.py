@@ -87,6 +87,7 @@ def create_temp_table():
         if conn:
             conn.close()
 
+
 def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
     """📥 psql COPY 명령어를 이용하여 CSV 데이터를 PostgreSQL에 적재"""
     if not os.path.exists(csv_file):
@@ -120,8 +121,6 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
 
         # 파일에서 데이터를 읽어 COPY 명령어 실행
         with open(csv_file, "r", encoding="utf-8") as f:
-            content = f.read()
-            print(content)
             cur.copy_expert(sql=copy_query, file=f)
 
         conn.commit()
@@ -136,6 +135,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
             cur.close()
         if conn:
             conn.close()
+        exit()
     return True
 
 
