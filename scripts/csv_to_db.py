@@ -105,17 +105,11 @@ def fix_csv_headers(input_file, output_file):
             writer.writerow(row)
 
 
-def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
-    """📥 pgfutter를 이용하여 CSV 데이터를 PostgreSQL에 적재"""
-
+def csv_to_db_copy(csv_file, target_table="stock_data"):
+    """📥 psql COPY 명령어를 이용하여 CSV 데이터를 PostgreSQL에 적재"""
     if not os.path.exists(csv_file):
         print(f"❌ CSV 파일이 존재하지 않습니다: {csv_file}")
         return False
-
-    schema = "public"
-    table_name = target_table + '_temp'
-
-    start_time = datetime.now()  # 시작 시간 기록
 
     # 파일 이름에서 ticker와 날짜 추출
     file_name = os.path.basename(csv_file)
@@ -138,39 +132,21 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
-        # 환경 변수 설정
-        os.environ.update({
-            "DB_NAME": DB_CONFIG["dbname"],
-            "DB_USER": DB_CONFIG["user"],
-            "DB_PASS": DB_CONFIG["password"],
-            "DB_HOST": DB_CONFIG["host"],
-            "DB_PORT": str(DB_CONFIG["port"]),
-            "DB_SCHEMA": schema,
-            "DB_TABLE": table_name
-        })
+        # COPY 명령어를 사용하여 CSV 데이터를 테이블에 적재
+        copy_query = f"""
+        COPY {target_table} (ticker, date, open, high, low, close, volume)
+        FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
+        """
 
-        # ✅ pgfutter 실행
-        command = ["pgfutter", "csv", fixed_csv_file]
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        # 파일에서 데이터를 읽어 COPY 명령어 실행
+        with open(fixed_csv_file, "r", encoding="utf-8") as f:
+            cur.copy_expert(sql=copy_query, file=f)
 
-        if result.returncode == 0:
-            print(f"\n✅ [INFO] pgfutter 실행 완료:\n{result.stdout}")
-        else:
-            print(f"\n⚠️ [WARNING] pgfutter 실행 중 경고 발생:\n{result.stderr}")
-
-        # ✅ 중복 데이터 제거 후 이동
-        cur.execute(f"""
-            DELETE FROM {table_name} 
-            WHERE (ticker, date) IN (SELECT ticker, date FROM {target_table});
-        """)
         conn.commit()
-
-    except subprocess.CalledProcessError as e:
-        print(f"\n❌ [ERROR] pgfutter 실행 실패: {e.stderr}")
-        return False
+        print(f"✅ {csv_file} 데이터가 {target_table} 테이블에 성공적으로 적재되었습니다.")
 
     except Exception as e:
-        print(f"\n❌ [ERROR] CSV 적재 실패: {e}")
+        print(f"❌ CSV 적재 실패: {e}")
         return False
 
     finally:
@@ -179,8 +155,8 @@ def csv_to_db_pgfutter(csv_file, target_table="stock_data"):
         if conn:
             conn.close()
 
-    print("\n🔹 [INFO] CSV 적재 완료.")
     return True
+
 
 
 def process_csv_files():
@@ -200,7 +176,7 @@ def process_csv_files():
 
     for csv_file_path in csv_files:
         if os.path.exists(csv_file_path):
-            success = csv_to_db_pgfutter(csv_file_path)
+            success = csv_to_db_copy(csv_file_path)
             if success:
                 print(f"✅ {csv_file_path} 처리 완료")
         else:
