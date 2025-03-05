@@ -18,7 +18,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS")
 }
 
-CSV_LOG_PATH = os.getenv("CSV_LOG_DIR")
+CSV_LOG_FILE = os.getenv("CSV_LOG_DIR")
 
 TICKER_PATH = os.getenv("TICKER_FILE_PATH")
 
@@ -153,7 +153,7 @@ def move_data_from_temp_to_main():
 
         cur.execute(move_data_query)
         conn.commit()
-        print("✅ 임시 테이블에서 실제 테이블로 데이터가 성공적으로 이동되었습니다.")
+        # print("✅ 임시 테이블에서 실제 테이블로 데이터가 성공적으로 이동되었습니다.")
 
     except Exception as e:
         print(f"❌ 데이터 이동 실패: {e}")
@@ -192,7 +192,7 @@ def process_csv_files():
     if not os.path.exists(CSV_LOG_PATH):
         print(f"❌ CSV 로그 디렉토리가 존재하지 않습니다: {CSV_LOG_PATH}")
         return
-    CSV_LOG_FILE = CSV_LOG_PATH + "/csv_files.log"
+
     with open(CSV_LOG_FILE, "r") as file:
         csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
@@ -212,7 +212,7 @@ def process_csv_files():
 
                 # Step 3: 임시 테이블 삭제
                 drop_temp_table()
-                print(f"✅ {csv_file_path} 처리 완료")
+                # print(f"✅ {csv_file_path} 처리 완료")
         else:
             print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
 
