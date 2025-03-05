@@ -96,7 +96,8 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
     # 파일 이름에서 ticker와 날짜 추출
     file_name = os.path.basename(csv_file)
     file_name_without_ext = os.path.splitext(file_name)[0]
-    print("파일명 : ", file_name)
+
+    create_temp_table()
 
     try:
         ticker, date_str = file_name_without_ext.split("_")
@@ -227,5 +228,4 @@ def process_csv_files():
 
 if __name__ == "__main__":
     create_stock_data_table()
-    create_temp_table()
     process_csv_files()
