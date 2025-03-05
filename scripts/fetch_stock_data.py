@@ -1,4 +1,7 @@
 import argparse
+import logging
+import time
+
 import yfinance as yf
 import os
 from datetime import datetime, timedelta
@@ -211,61 +214,81 @@ def fetch_stock_data(tickers, from_date, to_date):
         else:
             try:
                 start_time = datetime.now()  # 데이터 수집 시작 시간
-                # print(f"[STEP] 주식 데이터 다운로드: {tickers}")
 
-                stock_data = yf.download(
-                    tickers,
-                    start=extract_date.strftime("%Y-%m-%d"),
-                    end=(extract_date + timedelta(days=1)).strftime("%Y-%m-%d"),
-                    group_by='ticker',
-                    auto_adjust=True
-                )
-                if stock_data.empty:
-                    print("[WARN] 데이터 없음")
-
-                    log_to_db(
-                        execution_time = start_time,
-                        extraction_date = extract_date,
-                        tickers = "ALL",
-                        step = "FETCH_DATA",
-                        status = "FAIL",
-                        message = "데이터 없음",
-                        duration_seconds = (datetime.now() - start_time).total_seconds()
-                    )
-                else:
-                    # 📂 전체 데이터 CSV 저장
-                    # all_file_path = save_csv(stock_data, extract_date)
-
-                    #  🔁 ticker별 CSV 저장
-                    for ticker in tickers:
-                        if ticker in stock_data.columns.levels[0]:  # 데이터가 있는 ticker만 저장
-                            # print(f"[INFO] Ticker 데이터 저장: {ticker}")
-
-                            ticker_data = stock_data[ticker].reset_index()
-                            ticker_data["ticker"] = ticker
-                            save_csv(ticker_data, extract_date, ticker=ticker)
-                        else:   # 데이터가 없는 ticker 로그 처리
-                            print(f"[WARN] Ticker {ticker} 데이터 없음")
+                # 데이터 다운로드에 대한 재시도 로직 추가
+                retries = 3
+                for attempt in range(retries):
+                    try:
+                        stock_data = yf.download(
+                            tickers,
+                            start=extract_date.strftime("%Y-%m-%d"),
+                            end=(extract_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+                            group_by='ticker',
+                            auto_adjust=True
+                        )
+                        if stock_data.empty:
+                            print("[WARN] 데이터 없음")
 
                             log_to_db(
                                 execution_time=start_time,
                                 extraction_date=extract_date,
-                                tickers=ticker,
-                                step="SAVE_CSV_TICKER",
+                                tickers="ALL",
+                                step="FETCH_DATA",
                                 status="FAIL",
-                                message=f"Ticker {ticker} 데이터 없음",
+                                message="데이터 없음",
+                                duration_seconds=(datetime.now() - start_time).total_seconds()
+                            )
+                            break  # 데이터가 없으면 다음날로 넘어감
+                        else:
+                            # 📂 전체 데이터 CSV 저장
+                            # all_file_path = save_csv(stock_data, extract_date)
+
+                            #  🔁 ticker별 CSV 저장
+                            for ticker in tickers:
+                                if ticker in stock_data.columns.levels[0]:  # 데이터가 있는 ticker만 저장
+                                    # print(f"[INFO] Ticker 데이터 저장: {ticker}")
+
+                                    ticker_data = stock_data[ticker].reset_index()
+                                    ticker_data["ticker"] = ticker
+                                    save_csv(ticker_data, extract_date, ticker=ticker)
+                                else:  # 데이터가 없는 ticker 로그 처리
+                                    print(f"[WARN] Ticker {ticker} 데이터 없음")
+
+                                    log_to_db(
+                                        execution_time=start_time,
+                                        extraction_date=extract_date,
+                                        tickers=ticker,
+                                        step="SAVE_CSV_TICKER",
+                                        status="FAIL",
+                                        message=f"Ticker {ticker} 데이터 없음",
+                                        duration_seconds=(datetime.now() - start_time).total_seconds()
+                                    )
+                            break  # 성공적으로 데이터를 처리했으면 루프 종료
+                    except Exception as e:
+                        print(f"[ERROR] 데이터 수집 실패: {e}")
+                        if attempt < retries - 1:
+                            logging.info(f"[INFO] {ticker} 데이터 수집 실패, 재시도 중... (Attempt {attempt + 1}/{retries})")
+                            time.sleep(5)  # 재시도 간의 딜레이
+                        else:
+                            log_to_db(
+                                execution_time=start_time,
+                                extraction_date=extract_date,
+                                tickers="ALL",
+                                step="FETCH_DATA",
+                                status="FAIL",
+                                message=f"데이터 수집 실패: {e}",
                                 duration_seconds=(datetime.now() - start_time).total_seconds()
                             )
             except Exception as e:
-                print(f"[ERROR] 데이터 수집 실패: {e}")
+                print(f"[ERROR] 전체 데이터 수집 실패: {e}")
 
                 log_to_db(
-                    execution_time = start_time,
-                    extraction_date = extract_date,
-                    tickers = "ALL",
-                    step = "FETCH_DATA",
-                    status = "FAIL",
-                    message = f"데이터 수집 실패: {e}",
+                    execution_time=start_time,
+                    extraction_date=extract_date,
+                    tickers="ALL",
+                    step="FETCH_DATA",
+                    status="FAIL",
+                    message=f"전체 데이터 수집 실패: {e}",
                     duration_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
