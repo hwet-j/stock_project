@@ -212,4 +212,4 @@ def process_csv_files():
 if __name__ == "__main__":
     create_stock_data_table()
     create_temp_table()
-    process_csv_files()
+    # process_csv_files()
