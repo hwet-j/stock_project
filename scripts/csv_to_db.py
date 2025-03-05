@@ -135,7 +135,6 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
             cur.close()
         if conn:
             conn.close()
-        exit()
     return True
 
 
