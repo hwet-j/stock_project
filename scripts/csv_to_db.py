@@ -45,7 +45,6 @@ def create_stock_data_table():
         """
         cur.execute(create_table_query)
         conn.commit()
-        print("✅ stock_data 테이블이 확인되었습니다.")
 
     except Exception as e:
         print(f"❌ 테이블 생성 오류: {e}")
@@ -76,7 +75,6 @@ def create_temp_table():
             );
         """)
         conn.commit()
-        print("✅ stock_data_temp 테이블이 확인되었습니다.")
 
     except Exception as e:
         print(f"❌ 테이블 생성 오류: {e}")
@@ -124,8 +122,6 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
             cur.copy_expert(sql=copy_query, file=f)
 
         conn.commit()
-        print(f"✅ {csv_file} 데이터가 {target_table} 테이블에 성공적으로 적재되었습니다.")
-
     except Exception as e:
         print(f"❌ CSV 적재 실패: {e}")
         return False
@@ -135,7 +131,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
             cur.close()
         if conn:
             conn.close()
-        exit()
+
     return True
 
 
@@ -180,7 +176,6 @@ def drop_temp_table():
         drop_table_query = "DROP TABLE IF EXISTS stock_data_temp;"
         cur.execute(drop_table_query)
         conn.commit()
-        print("✅ 임시 테이블이 삭제되었습니다.")
 
     except Exception as e:
         print(f"❌ 임시 테이블 삭제 실패: {e}")
@@ -212,8 +207,6 @@ def process_csv_files():
             # Step 1: 임시 테이블에 CSV 파일 적재
             success = csv_to_temp_table(csv_file_path)
             if success:
-                print(f"✅ {csv_file_path} 임시 테이블에 데이터가 적재되었습니다.")
-
                 # Step 2: 임시 테이블에서 실제 테이블로 데이터 이동
                 move_data_from_temp_to_main()
 
