@@ -162,7 +162,7 @@ def save_csv(data, extract_date, ticker_list):
 
         return file_path
     except Exception as e:
-        # print(f"[ERROR] CSV 저장 실패: {e}")
+        print(f"[ERROR] CSV 저장 실패: {e}")
         duration_seconds = (datetime.now() - start_time).total_seconds()
 
         log_to_db(execution_time=datetime.now(),
