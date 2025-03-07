@@ -122,7 +122,6 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
 def save_csv(data, extract_date, ticker_list):
     """ CSV 파일을 저장하고 로그를 남기는 함수 """
     start_time = datetime.now()  # 시작 시간 기록
-
     try:
         # 📅 날짜 기반 폴더 구조 생성
         date_folder = extract_date.strftime("%Y/%m")
@@ -155,7 +154,7 @@ def save_csv(data, extract_date, ticker_list):
             from_date=extract_date,
             to_date=extract_date,
             tickers=ticker_list,
-            step="SAVE_CSV_TICKER",
+            step="SAVE_CSV",
             status="SUCCESS",
             message=message,
             duration_seconds=duration_seconds
@@ -170,7 +169,7 @@ def save_csv(data, extract_date, ticker_list):
                   from_date=extract_date,
                   to_date=extract_date,
                   tickers=ticker_list,
-                  step=step,
+                  step="SAVE_CSV",
                   status="FAIL",
                   message=f"CSV 저장 실패: {e}",
                   duration_seconds=duration_seconds)
