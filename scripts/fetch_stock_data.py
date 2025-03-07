@@ -106,7 +106,7 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
                 """
                 INSERT INTO stock_data_log 
                 (execution_time, from_date, to_date, tickers, step, status, message, duration_seconds) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (execution_time, from_date, to_date, tickers, step, status, message, duration_seconds)
             )
