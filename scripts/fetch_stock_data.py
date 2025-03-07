@@ -230,7 +230,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                 # ✅ 날짜별로 나눠 저장 (파일명: stock_data_YYYY_MM_DD.csv)
                 for date, df_date in df_final.groupby("Date"):
                     date_str = date.strftime("%Y_%m_%d")  # '2025-03-05' → '2025_03_05'
-                    save_csv(df_date, date_str, ticker_list)
+                    save_csv(df_date, date, ticker_list)
 
                 # 데이터 다운 및 저장 완료시 루프 탈출
                 break
