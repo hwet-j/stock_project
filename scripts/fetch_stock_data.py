@@ -89,7 +89,7 @@ def load_tickers_from_file(file_path: str) -> list:
 
 def get_default_dates() -> tuple:
     """🗓️ 기본 날짜를 전날로 설정"""
-    today = datetime.now()
+    today = datetime.now().strftime("%Y-%m-%d")
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
     return yesterday, today
