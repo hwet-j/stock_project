@@ -45,7 +45,8 @@ def create_log_table():
     CREATE TABLE IF NOT EXISTS {LOG_TABLE_NAME} (
         id SERIAL PRIMARY KEY,
         execution_time TIMESTAMP NOT NULL,
-        extraction_date DATE NOT NULL,
+        from_date DATE NOT NULL,
+        to_date DATE NOT NULL,
         tickers TEXT NOT NULL,
         step TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -96,7 +97,7 @@ def get_default_dates() -> tuple:
 
 
 # 로그 기록 함수
-def log_to_db(execution_time, extraction_date, tickers, step, status, message, duration_seconds):
+def log_to_db(execution_time, from_date, to_date, tickers, step, status, message, duration_seconds):
     conn = None
     try:
         conn = psycopg2.connect(**DB_CONFIG)
@@ -104,10 +105,10 @@ def log_to_db(execution_time, extraction_date, tickers, step, status, message, d
             cur.execute(
                 """
                 INSERT INTO stock_data_log 
-                (execution_time, extraction_date, tickers, step, status, message, duration_seconds) 
+                (execution_time, from_date, to_date, tickers, step, status, message, duration_seconds) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
-                (execution_time, extraction_date, tickers, step, status, message, duration_seconds)
+                (execution_time, from_date, to_date, tickers, step, status, message, duration_seconds)
             )
             conn.commit()
             # print(f"[INFO] 로그 저장 완료: {step} - {status}")
@@ -118,7 +119,7 @@ def log_to_db(execution_time, extraction_date, tickers, step, status, message, d
             conn.close()
 
 
-def save_csv(data, extract_date, ticker):
+def save_csv(data, extract_date, ticker_list):
     """ CSV 파일을 저장하고 로그를 남기는 함수 """
     start_time = datetime.now()  # 시작 시간 기록
 
@@ -151,8 +152,9 @@ def save_csv(data, extract_date, ticker):
         # 📝 로그 작성
         log_to_db(
             execution_time=datetime.now(),
-            extraction_date=extract_date,
-            tickers=ticker,
+            from_date=extract_date,
+            to_date=extract_date,
+            tickers=ticker_list,
             step="SAVE_CSV_TICKER",
             status="SUCCESS",
             message=message,
@@ -165,8 +167,9 @@ def save_csv(data, extract_date, ticker):
         duration_seconds = (datetime.now() - start_time).total_seconds()
 
         log_to_db(execution_time=datetime.now(),
-                  extraction_date=extract_date,
-                  tickers=ticker,
+                  from_date=extract_date,
+                  to_date=extract_date,
+                  tickers=ticker_list,
                   step=step,
                   status="FAIL",
                   message=f"CSV 저장 실패: {e}",
@@ -182,7 +185,8 @@ def fetch_stock_data(tickers, from_date, to_date):
     extraction_date = f"{from_date} ~ {to_date}"
     # 데이터 추출 시작
     log_to_db(execution_time=datetime.now(),
-              extraction_date=extraction_date,
+              from_date=from_date,
+              to_date=to_date,
               tickers=ticker_list,
               step="START",
               status="START",
@@ -202,7 +206,8 @@ def fetch_stock_data(tickers, from_date, to_date):
 
                 log_to_db(
                     execution_time=start_time,
-                    extraction_date=extraction_date,
+                    from_date=from_date,
+                    to_date=to_date,
                     tickers=ticker_list,
                     step="FETCH_DATA",
                     status="FAIL",
@@ -238,7 +243,8 @@ def fetch_stock_data(tickers, from_date, to_date):
             else:
                 log_to_db(
                     execution_time=start_time,
-                    extraction_date=extraction_date,
+                    from_date=from_date,
+                    to_date=to_date,
                     tickers=ticker_list,
                     step="FETCH_DATA",
                     status="FAIL",
