@@ -131,8 +131,7 @@ def save_csv(data, extract_date, ticker_list):
 
 
         # ✅ Ticker별 저장 여부에 따라 Step과 Message 설정
-        file_name = f"stock_data_{extract_date}.csv"
-        step = "SAVE_CSV_TICKER"
+        file_name = f"stock_data_{extract_date.date()}.csv"
         file_path = os.path.join(save_folder, file_name)
         message = f"Data: {file_path} 저장 완료"
 
