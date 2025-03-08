@@ -130,10 +130,10 @@ def save_csv(data, extract_date, tickers, is_monthly=False):
         # ✅ 월별/티커별 저장
         if is_monthly:
             save_folder = os.path.join(CSV_DIR, date_folder_base, "date_data")
-            file_name = f"ALL_DATA_{extract_date.date()}.csv"
+            file_name = f"ALL_DATA_{extract_date}.csv"
         else:
             save_folder = os.path.join(CSV_DIR, full_date_folder)
-            file_name = f"TICKER_DATA_{tickers}_{extract_date.date()}.csv"
+            file_name = f"TICKER_DATA_{tickers}_{extract_date}.csv"
 
         os.makedirs(save_folder, exist_ok=True)  # 폴더 생성
 
