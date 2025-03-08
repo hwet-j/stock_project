@@ -119,30 +119,32 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
             conn.close()
 
 
-def save_csv(data, extract_date, ticker_list):
+def save_csv(data, extract_date, tickers, is_monthly=False):
     """ CSV 파일을 저장하고 로그를 남기는 함수 """
     start_time = datetime.now()  # 시작 시간 기록
     try:
         # 📅 날짜 기반 폴더 구조 생성
-        date_folder = extract_date.strftime("%Y/%m")
-        save_folder = os.path.join(CSV_DIR, date_folder)
-        os.makedirs(save_folder, exist_ok=True)
-        # os.chmod(save_folder, 0o755)  # 권한 설정
+        date_folder_base = extract_date.replace("_", "/")[:7]  # "YYYY/MM"
+        full_date_folder = extract_date.replace("_", "/")  # "YYYY/MM/DD"
 
+        # ✅ 월별/티커별 저장
+        if is_monthly:
+            save_folder = os.path.join(CSV_DIR, date_folder_base, "date_data")
+            file_name = f"ALL_DATA_{extract_date.date()}.csv"
+        else:
+            save_folder = os.path.join(CSV_DIR, full_date_folder)
+            file_name = f"TICKER_DATA_{tickers}_{extract_date.date()}.csv"
 
-        # ✅ Ticker별 저장 여부에 따라 Step과 Message 설정
-        file_name = f"stock_data_{extract_date.date()}.csv"
+        os.makedirs(save_folder, exist_ok=True)  # 폴더 생성
+
         file_path = os.path.join(save_folder, file_name)
         message = f"Data: {file_path} 저장 완료"
 
-
         # CSV 저장
         data.to_csv(file_path, index=False)
-        # print(f"[INFO] CSV 저장 완료: {file_path}")
 
         # 저장 경로를 로그 파일에 기록
         log_file_path = CSV_LOG_DIR
-
         with open(log_file_path, "a") as log_file:
             log_file.write(file_path + "\n")
 
@@ -152,7 +154,7 @@ def save_csv(data, extract_date, ticker_list):
             execution_time=datetime.now(),
             from_date=extract_date,
             to_date=extract_date,
-            tickers=ticker_list,
+            tickers=tickers,
             step="SAVE_CSV",
             status="SUCCESS",
             message=message,
@@ -161,26 +163,26 @@ def save_csv(data, extract_date, ticker_list):
 
         return file_path
     except Exception as e:
-        print(f"[ERROR] CSV 저장 실패: {e}")
         duration_seconds = (datetime.now() - start_time).total_seconds()
+        # 📝 로그 작성
+        log_to_db(
+            execution_time=datetime.now(),
+            from_date=extract_date,
+            to_date=extract_date,
+            tickers=tickers,
+            step="SAVE_CSV",
+            status="FAIL",
+            message=f"CSV 저장 실패: {e}",
+            duration_seconds=duration_seconds
+        )
 
-        log_to_db(execution_time=datetime.now(),
-                  from_date=extract_date,
-                  to_date=extract_date,
-                  tickers=ticker_list,
-                  step="SAVE_CSV",
-                  status="FAIL",
-                  message=f"CSV 저장 실패: {e}",
-                  duration_seconds=duration_seconds)
         return None
-
 
 
 
 # 주식 데이터 가져오기
 def fetch_stock_data(tickers, from_date, to_date):
     ticker_list = ','.join(tickers)
-    extraction_date = f"{from_date} ~ {to_date}"
     # 데이터 추출 시작
     log_to_db(execution_time=datetime.now(),
               from_date=from_date,
@@ -229,7 +231,10 @@ def fetch_stock_data(tickers, from_date, to_date):
                 # ✅ 날짜별로 나눠 저장 (파일명: stock_data_YYYY_MM_DD.csv)
                 for date, df_date in df_final.groupby("Date"):
                     date_str = date.strftime("%Y_%m_%d")  # '2025-03-05' → '2025_03_05'
-                    save_csv(df_date, date, ticker_list)
+                    save_csv(df_date, date_str, ticker_list, is_monthly=True)
+                    for tick in tickers:
+                        ticker_data = df_date[df_date['Ticker'] == tick]
+                        save_csv(ticker_data, date_str, tick, is_monthly=False)
 
                 # 데이터 다운 및 저장 완료시 루프 탈출
                 break
