@@ -143,10 +143,11 @@ def save_csv(data, extract_date, tickers, is_monthly=False):
         # CSV 저장
         data.to_csv(file_path, index=False)
 
-        # 저장 경로를 로그 파일에 기록
-        log_file_path = CSV_LOG_DIR
-        with open(log_file_path, "a") as log_file:
-            log_file.write(file_path + "\n")
+        # 저장 경로를 로그 파일에 기록 (전체 하나만)
+        if is_monthly:
+            log_file_path = CSV_LOG_DIR
+            with open(log_file_path, "a") as log_file:
+                log_file.write(file_path + "\n")
 
         duration_seconds = (datetime.now() - start_time).total_seconds()
         # 📝 로그 작성
