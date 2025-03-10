@@ -92,18 +92,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
         print(f"❌ CSV 파일이 존재하지 않습니다: {csv_file}")
         return False
 
-    # 파일 이름에서 ticker와 날짜 추출
-    file_name = os.path.basename(csv_file)
-    file_name_without_ext = os.path.splitext(file_name)[0]
-
     create_temp_table()
-
-    try:
-        ticker, date_str = file_name_without_ext.split("_")
-        date_formatted = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-    except ValueError:
-        print(f"❌ 파일명에서 ticker와 날짜를 추출할 수 없습니다: {file_name}")
-        return False
 
     conn = None
     cur = None
