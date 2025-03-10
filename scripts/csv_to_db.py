@@ -213,7 +213,8 @@ def process_csv_files(csv_file_path=None):
         print("✅ 모든 CSV 파일 처리 완료")
 
         try:
-            os.remove(CSV_LOG_FILE)
+            # os.remove(CSV_LOG_FILE)
+            print("..")
         except Exception as e:
             print(f"⚠️ 로그 파일 삭제 실패: {e}")
 
