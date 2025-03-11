@@ -215,12 +215,13 @@ def fetch_stock_data(tickers, from_date, to_date):
                     duration_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
+            multi_ticker = stock_data.xs(tickers, level=1, axis=1)
 
             #  🔁 ticker 컬럼 생성 및 ticker별 데이터 분리
             valid_tickers = []  # ✅ 데이터가 있는 티커 리스트
             data_list = []      # ✅ 유효한 데이터 저장
             for ticker in tickers:
-                if ticker not in stock_data or stock_data[ticker].isna().all().all():
+                if multi_ticker[ticker].isna().all().all():
                     print(f"[WARN] {ticker} 데이터 없음")
                     log_to_db(
                         execution_time=start_time,
@@ -235,7 +236,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                     continue  # 다음 티커로 이동
 
                 valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
-                df_ticker = stock_data[ticker].copy()
+                df_ticker = multi_ticker[ticker].copy()
                 df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
                 df_ticker.reset_index(inplace=True)
 
