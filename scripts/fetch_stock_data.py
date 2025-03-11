@@ -252,7 +252,7 @@ def fetch_stock_data(tickers, from_date, to_date):
             df_final = pd.concat(data_list).reset_index()
 
             # ✅ 필요한 컬럼만 선택
-            # df_final = df_final[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
+            df_final = df_final[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
 
             # ✅ 날짜별로 나눠 저장 (파일명: stock_data_YYYY_MM_DD.csv)
             for date, df_date in df_final.groupby("Date"):
