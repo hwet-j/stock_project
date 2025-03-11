@@ -224,30 +224,12 @@ def fetch_stock_data(tickers, from_date, to_date):
             data_list = []      # ✅ 유효한 데이터 저장
 
             # ✅ 티커 목록 추출 (MultiIndex 구조에서 2번째 레벨 값 가져오기)
-            available_tickers = stock_data.columns.get_level_values(1).unique()
+            ticker_in_column = stock_data.stack(level=0, future_stack=True).reset_index()
 
             for ticker in tickers:
-                try:
-                    # ✅ 데이터가 있는 티커인지 확인
-                    if ticker not in available_tickers:
-                        raise KeyError(f"{ticker} 데이터 없음")
-
-                    df_ticker = stock_data.xs(ticker, level=1, axis=1).copy()  # ✅ MultiIndex에서 안전한 접근법
-
-                    # ✅ NaN이 아닌 데이터가 있는지 확인
-                    if df_ticker.dropna(how="all").empty:
-                        raise ValueError(f"{ticker} 데이터 없음")
-
-                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
-                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
-                    df_ticker.reset_index(inplace=True)
-
-                    # ✅ 필요한 컬럼만 선택
-                    df_ticker = df_ticker[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
-                    data_list.append(df_ticker)
-
-                except (KeyError, ValueError) as e:
-                    print(f"[WARN] {ticker} 데이터 없음: {e}")
+                df_ticker = ticker_in_column[ticker_in_column["Ticker"] == ticker]
+                if df_ticker[["Open", "High", "Low", "Close", "Volume"]].isna().all().all():
+                    print(f"[WARN] {ticker} 데이터 없음")
                     log_to_db(
                         execution_time=start_time,
                         from_date=from_date,
@@ -258,6 +240,15 @@ def fetch_stock_data(tickers, from_date, to_date):
                         message=str(e),
                         duration_seconds=(datetime.now() - start_time).total_seconds()
                     )
+                else:
+                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
+                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
+                    df_ticker.reset_index(inplace=True)
+
+                    # ✅ 필요한 컬럼만 선택
+                    df_ticker = df_ticker[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
+                    data_list.append(df_ticker)
+
 
             if not data_list:
                 print("[WARN] 모든 티커의 데이터가 없음")
