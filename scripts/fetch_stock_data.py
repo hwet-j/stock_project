@@ -203,7 +203,7 @@ def fetch_stock_data(tickers, from_date, to_date):
     for attempt in range(retries):
         try:
             # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
-            stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker')
+            stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker', threads=True)
             # print(stock_data.head(5))
             # ✅ 모든 데이터가 비어 있는지 확인
             if stock_data.empty:
@@ -220,7 +220,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                 )
                 return
 
-            valid_tickers = []  # ✅ 데이터가 있는 티커 리스트
+            valid_tickers = set()  # ✅ 데이터가 있는 티커 리스트
             data_list = []      # ✅ 유효한 데이터 저장
 
             # ✅ 티커 목록 추출 (MultiIndex 구조에서 2번째 레벨 값 가져오기)
@@ -241,7 +241,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                         duration_seconds=(datetime.now() - start_time).total_seconds()
                     )
                 else:
-                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
+                    valid_tickers.add(ticker)  # ✅ 데이터 있는 티커만 추가
                     df_ticker.reset_index(inplace=True)
 
                     # ✅ 필요한 컬럼만 선택
@@ -258,6 +258,7 @@ def fetch_stock_data(tickers, from_date, to_date):
 
             # ✅ 필요한 컬럼만 선택
             df_final = df_final[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
+            df_final['Volume'] = df_final['Volume'].astype(int)  # 정수형 변환 추가
 
             # ✅ 날짜별로 나눠 저장
             for date, df_date in df_final.groupby("Date"):
