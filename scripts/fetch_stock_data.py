@@ -297,5 +297,7 @@ if __name__ == "__main__":
     else:
         from_date, to_date = get_default_dates()
     logging.info(f"[INFO] {from_date} ~ {to_date}")
+    print(f"[INFO] {from_date} ~ {to_date}")
+
     fetch_stock_data(tickers, from_date, to_date)
 
