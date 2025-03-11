@@ -102,7 +102,7 @@ def csv_to_temp_table(csv_file, target_table="stock_data_temp"):
 
         # COPY 명령어를 사용하여 CSV 데이터를 테이블에 적재
         copy_query = f"""
-        COPY {target_table} (date, open, high, low, close, volume, ticker)
+        COPY {target_table} (date, ticker, close, high, low, open, volume)
         FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
         """
 
