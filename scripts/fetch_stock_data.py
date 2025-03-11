@@ -223,6 +223,9 @@ def fetch_stock_data(tickers, from_date, to_date):
             valid_tickers = []  # ✅ 데이터가 있는 티커 리스트
             data_list = []      # ✅ 유효한 데이터 저장
 
+            # ✅ 티커 목록 추출 (MultiIndex 구조에서 2번째 레벨 값 가져오기)
+            available_tickers = stock_data.columns.get_level_values(1).unique()
+
             for ticker in tickers:
                 try:
                     # ✅ 데이터가 있는 티커인지 확인
