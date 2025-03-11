@@ -204,7 +204,7 @@ def fetch_stock_data(tickers, from_date, to_date):
         try:
             # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
             stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker')
-
+            print(stock_data.head(5))
             # ✅ 모든 데이터가 비어 있는지 확인
             if stock_data.empty:
                 print("[WARN] 모든 데이터가 없음")
@@ -225,19 +225,18 @@ def fetch_stock_data(tickers, from_date, to_date):
 
             for ticker in tickers:
                 try:
-                    # ✅ MultiIndex에서 티커 목록 가져와서 체크
-                    if ticker not in stock_data.columns.get_level_values(1):
+                    # ✅ 데이터가 있는 티커인지 확인
+                    if ticker not in available_tickers:
                         raise KeyError(f"{ticker} 데이터 없음")
 
-                    # ✅ MultiIndex에서 티커 데이터 가져오기
-                    df_ticker = stock_data.xs(ticker, level=1, axis=1)
+                    df_ticker = stock_data.xs(ticker, level=1, axis=1).copy()  # ✅ MultiIndex에서 안전한 접근법
 
                     # ✅ NaN이 아닌 데이터가 있는지 확인
                     if df_ticker.dropna(how="all").empty:
                         raise ValueError(f"{ticker} 데이터 없음")
 
-                    valid_tickers.append(ticker)
-                    df_ticker.insert(0, "Ticker", ticker)
+                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
+                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
                     df_ticker.reset_index(inplace=True)
 
                     # ✅ 필요한 컬럼만 선택
@@ -261,7 +260,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                 print("[WARN] 모든 티커의 데이터가 없음")
                 return
 
-            # ✅ 모든 Ticker 데이터를 하나의 DataFrame으로 병합
+                # ✅ 모든 Ticker 데이터를 하나의 DataFrame으로 병합
             df_final = pd.concat(data_list).reset_index(drop=True)
 
             # ✅ 필요한 컬럼만 선택
