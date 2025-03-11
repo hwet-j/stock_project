@@ -242,7 +242,6 @@ def fetch_stock_data(tickers, from_date, to_date):
                     )
                 else:
                     valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
-                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
                     df_ticker.reset_index(inplace=True)
 
                     # ✅ 필요한 컬럼만 선택
