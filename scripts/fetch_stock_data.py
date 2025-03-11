@@ -184,26 +184,30 @@ def save_csv(data, extract_date, tickers, is_monthly=False):
 # 주식 데이터 가져오기
 def fetch_stock_data(tickers, from_date, to_date):
     ticker_list = ','.join(tickers)
-    # 데이터 추출 시작
-    log_to_db(execution_time=datetime.now(),
-              from_date=from_date,
-              to_date=to_date,
-              tickers=ticker_list,
-              step="START",
-              status="START",
-              message="데이터 추출 시작",
-              duration_seconds=0)
 
-    start_time = datetime.now()  # 데이터 수집 시작 시간
+    # ✅ 데이터 추출 시작 로그
+    log_to_db(
+        execution_time=datetime.now(),
+        from_date=from_date,
+        to_date=to_date,
+        tickers=ticker_list,
+        step="START",
+        status="START",
+        message="데이터 추출 시작",
+        duration_seconds=0
+    )
 
-    retries = 3
+    start_time = datetime.now()
+    retries = 3  # 최대 재시도 횟수
+
     for attempt in range(retries):
         try:
-            # ticker, from_date, to_date 해당하는 데이터 수집
-            stock_data = yf.download(tickers, start=from_date, end=to_date)
-            if stock_data.empty:
-                print("[WARN] 데이터 없음")
+            # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
+            stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker')
 
+            # ✅ 모든 데이터가 비어 있는지 확인
+            if stock_data.empty:
+                print("[WARN] 모든 데이터가 없음")
                 log_to_db(
                     execution_time=start_time,
                     from_date=from_date,
@@ -214,16 +218,33 @@ def fetch_stock_data(tickers, from_date, to_date):
                     message="모든 데이터 없음",
                     duration_seconds=(datetime.now() - start_time).total_seconds()
                 )
+                return
 
-
-            #  🔁 ticker 컬럼 생성 및 ticker별 데이터 분리
             valid_tickers = []  # ✅ 데이터가 있는 티커 리스트
             data_list = []      # ✅ 유효한 데이터 저장
-            for ticker in tickers:
-                multi_ticker = stock_data.xs(ticker, level=1, axis=1)
 
-                if multi_ticker[ticker].isna().all().all():
-                    print(f"[WARN] {ticker} 데이터 없음")
+            for ticker in tickers:
+                try:
+                    # ✅ MultiIndex DataFrame에서 개별 Ticker 데이터 가져오기
+                    if (ticker,) not in stock_data.columns:  # 해당 ticker가 없는 경우
+                        raise KeyError(f"{ticker} 데이터 없음")
+
+                    df_ticker = stock_data[ticker].copy()  # 올바른 접근법
+
+                    # ✅ NaN이 아닌 데이터가 있는지 확인
+                    if df_ticker.dropna(how="all").empty:
+                        raise ValueError(f"{ticker} 데이터 없음")
+
+                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
+                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
+                    df_ticker.reset_index(inplace=True)
+
+                    # ✅ 필요한 컬럼만 선택
+                    df_ticker = df_ticker[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
+                    data_list.append(df_ticker)
+
+                except (KeyError, ValueError) as e:
+                    print(f"[WARN] {ticker} 데이터 없음: {e}")
                     log_to_db(
                         execution_time=start_time,
                         from_date=from_date,
@@ -231,42 +252,35 @@ def fetch_stock_data(tickers, from_date, to_date):
                         tickers=ticker,
                         step="FETCH_DATA",
                         status="FAIL",
-                        message=f"{ticker} 데이터 없음",
+                        message=str(e),
                         duration_seconds=(datetime.now() - start_time).total_seconds()
                     )
-                    continue  # 다음 티커로 이동
-
-                valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
-                df_ticker = multi_ticker[ticker].copy()
-                df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
-                df_ticker.reset_index(inplace=True)
-
-                df_ticker = df_ticker[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
-                data_list.append(df_ticker)
 
             if not data_list:
                 print("[WARN] 모든 티커의 데이터가 없음")
                 return
 
             # ✅ 모든 Ticker 데이터를 하나의 DataFrame으로 병합
-            df_final = pd.concat(data_list).reset_index()
+            df_final = pd.concat(data_list).reset_index(drop=True)
 
             # ✅ 필요한 컬럼만 선택
             df_final = df_final[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
 
-            # ✅ 날짜별로 나눠 저장 (파일명: stock_data_YYYY_MM_DD.csv)
+            # ✅ 날짜별로 나눠 저장
             for date, df_date in df_final.groupby("Date"):
                 date_str = date.strftime("%Y_%m_%d")  # '2025-03-05' → '2025_03_05'
                 save_csv(df_date, date_str, '_'.join(valid_tickers), is_monthly=True)
-                for tick in tickers:
+
+                for tick in valid_tickers:
                     ticker_data = df_date[df_date['Ticker'] == tick]
                     save_csv(ticker_data, date_str, tick, is_monthly=False)
 
-            break
+            break  # 정상적으로 완료되면 루프 종료
+
         except Exception as e:
             print(f"[ERROR] 데이터 수집 실패: {e}")
             if attempt < retries - 1:
-                logging.info(f"[INFO] {ticker} 데이터 수집 실패, 재시도 중... (Attempt {attempt + 1}/{retries})")
+                logging.info(f"[INFO] 데이터 수집 실패, 재시도 중... (Attempt {attempt + 1}/{retries})")
                 time.sleep(5)  # 재시도 간의 딜레이
             else:
                 log_to_db(
@@ -279,7 +293,6 @@ def fetch_stock_data(tickers, from_date, to_date):
                     message=f"데이터 수집 실패: {e}",
                     duration_seconds=(datetime.now() - start_time).total_seconds()
                 )
-
 
 if __name__ == "__main__":
     create_log_table()
