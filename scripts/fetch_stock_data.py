@@ -258,6 +258,7 @@ def fetch_stock_data(tickers, from_date, to_date):
 
             # ✅ 필요한 컬럼만 선택
             df_final = df_final[['Date', 'Ticker', 'Close', 'High', 'Low', 'Open', 'Volume']]
+            df_final = df_final.dropna()  # 결측치가 있는 행 삭제
             df_final['Volume'] = df_final['Volume'].astype(int)  # 정수형 변환 추가
 
             # ✅ 날짜별로 나눠 저장
