@@ -204,7 +204,7 @@ def fetch_stock_data(tickers, from_date, to_date):
         try:
             # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
             stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker')
-            print(stock_data.head(5))
+            # print(stock_data.head(5))
             # ✅ 모든 데이터가 비어 있는지 확인
             if stock_data.empty:
                 print("[WARN] 모든 데이터가 없음")
