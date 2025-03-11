@@ -225,18 +225,19 @@ def fetch_stock_data(tickers, from_date, to_date):
 
             for ticker in tickers:
                 try:
-                    # ✅ MultiIndex DataFrame에서 개별 Ticker 데이터 가져오기
-                    if (ticker,) not in stock_data.columns:  # 해당 ticker가 없는 경우
+                    # ✅ MultiIndex에서 티커 목록 가져와서 체크
+                    if ticker not in stock_data.columns.get_level_values(1):
                         raise KeyError(f"{ticker} 데이터 없음")
 
-                    df_ticker = stock_data[ticker].copy()  # 올바른 접근법
+                    # ✅ MultiIndex에서 티커 데이터 가져오기
+                    df_ticker = stock_data.xs(ticker, level=1, axis=1)
 
                     # ✅ NaN이 아닌 데이터가 있는지 확인
                     if df_ticker.dropna(how="all").empty:
                         raise ValueError(f"{ticker} 데이터 없음")
 
-                    valid_tickers.append(ticker)  # ✅ 데이터 있는 티커만 추가
-                    df_ticker.insert(0, "Ticker", ticker)  # Ticker 컬럼 추가
+                    valid_tickers.append(ticker)
+                    df_ticker.insert(0, "Ticker", ticker)
                     df_ticker.reset_index(inplace=True)
 
                     # ✅ 필요한 컬럼만 선택
