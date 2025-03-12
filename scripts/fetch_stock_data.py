@@ -204,6 +204,9 @@ def fetch_stock_data(tickers, from_date, to_date):
         try:
             # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
             stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker', threads=True)
+
+            missing_tickers = [ticker for ticker in tickers if stock_data[ticker].isna().all().all()]
+
             # print(stock_data.head(5))
             # ✅ 모든 데이터가 비어 있는지 확인
             if stock_data.empty:
@@ -226,7 +229,9 @@ def fetch_stock_data(tickers, from_date, to_date):
             # ✅ 티커 목록 추출 (MultiIndex 구조에서 2번째 레벨 값 가져오기)
             ticker_in_column = stock_data.stack(level=0, future_stack=True).reset_index()
 
-            for ticker in tickers:
+            down_tickers = list(set(tickers) - set(missing_tickers))
+
+            for ticker in down_tickers:
                 df_ticker = ticker_in_column[ticker_in_column["Ticker"] == ticker]
                 if df_ticker[["Open", "High", "Low", "Close", "Volume"]].isna().all().all():
                     print(f"[WARN] {ticker} 데이터 없음")
@@ -253,7 +258,7 @@ def fetch_stock_data(tickers, from_date, to_date):
                 print("[WARN] 모든 티커의 데이터가 없음")
                 return
 
-                # ✅ 모든 Ticker 데이터를 하나의 DataFrame으로 병합
+            # ✅ 모든 Ticker 데이터를 하나의 DataFrame으로 병합
             df_final = pd.concat(data_list).reset_index(drop=True)
 
             # ✅ 필요한 컬럼만 선택
