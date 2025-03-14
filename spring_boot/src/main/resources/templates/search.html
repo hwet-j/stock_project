@@ -1,0 +1,35 @@
+<!-- src/main/resources/templates/search.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Stock Search</title>
+</head>
+<body>
+<h1>Stock Search Page</h1>
+<form action="/stock/search" method="post">
+    <label for="ticker">Ticker:</label>
+    <input type="text" id="ticker" name="ticker">
+    <label for="date">Date:</label>
+    <input type="date" id="date" name="date">
+    <button type="submit">Search</button>
+</form>
+
+<div th:if="${searchResults}">
+    <h2>Results:</h2>
+    <table border="1">
+        <tr>
+            <th>Ticker</th>
+            <th>Date</th>
+            <th>Open</th>
+            <th>Close</th>
+        </tr>
+        <tr th:each="stock : ${searchResults}">
+            <td th:text="${stock.ticker}"></td>
+            <td th:text="${stock.date}"></td>
+            <td th:text="${stock.open}"></td>
+            <td th:text="${stock.close}"></td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>
