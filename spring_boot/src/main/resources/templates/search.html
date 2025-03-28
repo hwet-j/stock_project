@@ -1,35 +1,66 @@
-<!-- src/main/resources/templates/search.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Search</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<h1>Stock Search Page</h1>
-<form action="/stock/search" method="post">
-    <label for="ticker">Ticker:</label>
-    <input type="text" id="ticker" name="ticker">
-    <label for="date">Date:</label>
-    <input type="date" id="date" name="date">
-    <button type="submit">Search</button>
-</form>
+<div class="container">
+    <header>
+        <h1>Stock Search</h1>
+    </header>
 
-<div th:if="${searchResults}">
-    <h2>Results:</h2>
-    <table border="1">
-        <tr>
-            <th>Ticker</th>
-            <th>Date</th>
-            <th>Open</th>
-            <th>Close</th>
-        </tr>
-        <tr th:each="stock : ${searchResults}">
-            <td th:text="${stock.ticker}"></td>
-            <td th:text="${stock.date}"></td>
-            <td th:text="${stock.open}"></td>
-            <td th:text="${stock.close}"></td>
-        </tr>
-    </table>
+    <!-- 검색 폼 -->
+    <div class="search-form">
+        <form action="/stock/search" method="post">
+            <div class="form-group">
+                <label for="ticker">Ticker:</label>
+                <input type="text" id="ticker" name="ticker" placeholder="Enter Ticker">
+            </div>
+
+            <div class="form-group">
+                <label for="date">Date:</label>
+                <input type="date" id="date" name="date">
+            </div>
+
+            <button type="submit" class="btn">Search</button>
+        </form>
+    </div>
+
+    <!-- 검색 결과 -->
+    <div th:if="${searchResults}">
+        <h2>Results:</h2>
+        <table class="results-table">
+            <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>Date</th>
+                <th>Open</th>
+                <th>Close</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="stock : ${searchResults}">
+                <td th:text="${stock.ticker}"></td>
+                <td th:text="${stock.date}"></td>
+                <td th:text="${stock.open}"></td>
+                <td th:text="${stock.close}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div th:if="${error}" class="error-message">
+        <p th:text="${error}"></p>
+    </div>
+
+    <!-- 돌아가기 링크 -->
+    <div class="link-container">
+        <a href="/">Back to Home</a>
+    </div>
 </div>
 </body>
 </html>
