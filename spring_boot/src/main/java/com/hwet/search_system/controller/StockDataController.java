@@ -35,9 +35,9 @@ public class StockDataController {
             @RequestParam(value="date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             Model model) {
 
-        System.out.println("=== 검색 요청 ===");
-        System.out.println("ticker: " + ticker);
-        System.out.println("date: " + date);
+//        System.out.println("=== 검색 요청 ===");
+//        System.out.println("ticker: " + ticker);
+//        System.out.println("date: " + date);
 
         List<StockData> searchResults;
 
@@ -53,10 +53,10 @@ public class StockDataController {
         }
 
         // 🔥 검색 결과 디버깅
-        System.out.println("검색 결과 개수: " + searchResults.size());
-        for (StockData stock : searchResults) {
-            System.out.println("검색 결과: " + stock.getTicker() + " | " + stock.getDate());
-        }
+//        System.out.println("검색 결과 개수: " + searchResults.size());
+//        for (StockData stock : searchResults) {
+//            System.out.println("검색 결과: " + stock.getTicker() + " | " + stock.getDate());
+//        }
 
         model.addAttribute("searchResults", searchResults);
         model.addAttribute("tickers", stockDataService.getAllTickers());

@@ -1,0 +1,127 @@
+/* 기본 레이아웃 */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+}
+
+.container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 헤더 */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    color: #333;
+    font-size: 2.5em;
+}
+
+/* 검색 폼 스타일 */
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+label {
+    font-weight: bold;
+    color: #333;
+}
+
+input[type="text"],
+input[type="date"] {
+    padding: 8px;
+    font-size: 1rem;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    width: 100%;
+}
+
+button[type="submit"] {
+    padding: 10px 20px;
+    font-size: 1rem;
+    color: white;
+    background-color: #4CAF50;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button[type="submit"]:hover {
+    background-color: #45a049;
+}
+
+/* 검색 결과 테이블 스타일 */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 30px;
+}
+
+.results-table th,
+.results-table td {
+    padding: 12px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.results-table th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.results-table td {
+    background-color: #f9f9f9;
+}
+
+.results-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.results-table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* 에러 메시지 */
+.error-message {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #ffcccb;
+    color: #d8000c;
+    border-radius: 5px;
+    text-align: center;
+}
+
+/* 메인 페이지 링크 스타일 */
+.link-container {
+    text-align: center;
+    margin-top: 40px;
+}
+
+.link-container a {
+    font-size: 1.2rem;
+    color: #4CAF50;
+    text-decoration: none;
+    margin: 10px 20px;
+}
+
+.link-container a:hover {
+    text-decoration: underline;
+}
