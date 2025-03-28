@@ -9,6 +9,7 @@ import pandas_market_calendars as mcal
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
+from hdfs import InsecureClient
 
 
 # .env file load
@@ -23,6 +24,13 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS")
 }
 
+
+# HDFS 연결 정보 설정
+HDFS_HOST = os.getenv("HDFS_HOST")
+HDFS_PORT = os.getenv("HDFS_PORT")
+HDFS_CLIENT = InsecureClient(f'http://{HDFS_HOST}:{HDFS_PORT}')
+
+# CSV 및 TIcker 파일 경로
 CSV_DIR = os.getenv("CSV_DIR")
 TICKER_PATH = os.getenv("TICKER_FILE_PATH")
 CSV_LOG_DIR = os.getenv("CSV_LOG_DIR")
@@ -121,19 +129,21 @@ def save_csv(data, extract_date, tickers, is_monthly=False):
 
         # ✅ 월별/티커별 저장
         if is_monthly:
-            save_folder = os.path.join(CSV_DIR, date_folder_base, "date_data")
+            save_folder = f"/{CSV_DIR}/{date_folder_base}/date_data"
             file_name = f"ALL_DATA_{extract_date}.csv"
         else:
-            save_folder = os.path.join(CSV_DIR, full_date_folder)
+            save_folder = f"/{CSV_DIR}/{full_date_folder}"
             file_name = f"TICKER_DATA_{tickers}_{extract_date}.csv"
 
-        os.makedirs(save_folder, exist_ok=True)  # 폴더 생성
+        if not HDFS_CLIENT.status(save_folder, strict=False):
+            HDFS_CLIENT.makedirs(save_folder)
 
         file_path = os.path.join(save_folder, file_name)
-        message = f"Data: {file_path} 저장 완료"
+        message = f"Data: {file_path} HDFS 저장 완료"
 
         # CSV 저장
-        data.to_csv(file_path, index=False)
+        with HDFS_CLIENT.write(file_path, encoding='utf-8') as writer:
+            data.to_csv(writer, index=False)
 
         # 저장 경로를 로그 파일에 기록 (전체 하나만)
         if is_monthly:
@@ -197,8 +207,6 @@ def fetch_stock_data(tickers, from_date, to_date):
             # ✅ Ticker 데이터를 가져옴 (MultiIndex DataFrame)
             stock_data = yf.download(tickers, start=from_date, end=to_date, group_by='ticker', threads=True)
 
-
-            # print(stock_data.head(5))
             # ✅ 모든 데이터가 비어 있는지 확인
             if stock_data.empty:
                 print("[WARN] 모든 데이터가 없음")

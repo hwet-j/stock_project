@@ -32,7 +32,7 @@ def create_stock_data_table():
 
         create_table_query = """
         CREATE TABLE IF NOT EXISTS stock_data (
-            id SERIAL PRIMARY KEY,
+            id BIGSERIAL PRIMARY KEY,
             ticker TEXT NOT NULL,
             date DATE NOT NULL,
             open NUMERIC,
