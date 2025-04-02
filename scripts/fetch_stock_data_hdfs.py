@@ -26,9 +26,9 @@ DB_CONFIG = {
 
 
 # HDFS 연결 정보 설정
-HDFS_HOST = os.getenv("HDFS_HOST")
-HDFS_PORT = os.getenv("HDFS_PORT")
-HDFS_CLIENT = InsecureClient(f'http://{HDFS_HOST}:{HDFS_PORT}')
+HDFS_URL = os.getenv("HDFS_HOST")
+HDFS_USER = os.getenv("HDFS_PORT")
+HDFS_DIR = os.getenv("HDFS_DIR", "/hwet/data/")  # 저장할 HDFS 경로
 
 # CSV 및 TIcker 파일 경로
 CSV_DIR = os.getenv("CSV_DIR")
@@ -37,6 +37,8 @@ CSV_LOG_DIR = os.getenv("CSV_LOG_DIR")
 
 # 로그 테이블명 지정
 LOG_TABLE_NAME = "stock_data_log"
+
+client = InsecureClient(HDFS_URL, user=HDFS_USER)
 
 
 
@@ -119,8 +121,23 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
             conn.close()
 
 
-def save_csv(data, extract_date, tickers, is_monthly=False):
-    """ CSV 파일을 저장하고 로그를 남기는 함수 """
+from hdfs import InsecureClient
+import pandas as pd
+from io import StringIO
+import os
+from datetime import datetime
+
+# HDFS 클라이언트 설정
+HDFS_URL = os.getenv("HDFS_URL", "http://localhost:9870")  # WebHDFS 주소 (NameNode HTTP 포트)
+HDFS_USER = os.getenv("HDFS_USER", "hwet")  # HDFS 사용자
+HDFS_DIR = os.getenv("HDFS_DIR", "/hwet/data/")  # 저장할 HDFS 경로
+
+# HDFS 클라이언트 생성
+client = InsecureClient(HDFS_URL, user=HDFS_USER)
+
+
+def save_csv_to_hdfs(data, extract_date, tickers, is_monthly=False):
+    """ CSV 파일을 HDFS에 저장하고 로그를 남기는 함수 """
     start_time = datetime.now()  # 시작 시간 기록
     try:
         # 📅 날짜 기반 폴더 구조 생성
@@ -129,58 +146,58 @@ def save_csv(data, extract_date, tickers, is_monthly=False):
 
         # ✅ 월별/티커별 저장
         if is_monthly:
-            save_folder = f"/{CSV_DIR}/{date_folder_base}/date_data"
+            save_folder = os.path.join(HDFS_DIR, date_folder_base, "date_data")
             file_name = f"ALL_DATA_{extract_date}.csv"
         else:
-            save_folder = f"/{CSV_DIR}/{full_date_folder}"
+            save_folder = os.path.join(HDFS_DIR, full_date_folder)
             file_name = f"TICKER_DATA_{tickers}_{extract_date}.csv"
 
-        if not HDFS_CLIENT.status(save_folder, strict=False):
-            HDFS_CLIENT.makedirs(save_folder)
+        # HDFS 경로
+        hdfs_path = os.path.join(save_folder, file_name)
 
-        file_path = os.path.join(save_folder, file_name)
-        message = f"Data: {file_path} HDFS 저장 완료"
+        # 데이터프레임을 CSV로 변환
+        csv_buffer = StringIO()
+        data.to_csv(csv_buffer, index=False)
 
-        # CSV 저장
-        with HDFS_CLIENT.write(file_path, encoding='utf-8') as writer:
-            data.to_csv(writer, index=False)
+        # HDFS에 저장
+        with client.write(hdfs_path, encoding="utf-8", overwrite=True) as writer:
+            writer.write(csv_buffer.getvalue())
 
-        # 저장 경로를 로그 파일에 기록 (전체 하나만)
-        if is_monthly:
-            log_file_path = CSV_LOG_DIR
-            with open(log_file_path, "a") as log_file:
-                log_file.write(file_path + "\n")
+        # 메시지
+        message = f"Data: {hdfs_path} 저장 완료"
 
         duration_seconds = (datetime.now() - start_time).total_seconds()
-        # 📝 로그 작성
+
+        # 📝 로그 작성 (DB에)
         log_to_db(
             execution_time=datetime.now(),
             from_date=extract_date,
             to_date=extract_date,
             tickers=tickers,
-            step="SAVE_CSV",
+            step="SAVE_CSV_HDFS",
             status="SUCCESS",
             message=message,
             duration_seconds=duration_seconds
         )
 
-        return file_path
+        return hdfs_path
+
     except Exception as e:
         duration_seconds = (datetime.now() - start_time).total_seconds()
-        # 📝 로그 작성
+
+        # 📝 로그 작성 (DB에)
         log_to_db(
             execution_time=datetime.now(),
             from_date=extract_date,
             to_date=extract_date,
             tickers=tickers,
-            step="SAVE_CSV",
+            step="SAVE_CSV_HDFS",
             status="FAIL",
-            message=f"CSV 저장 실패: {e}",
+            message=f"HDFS 저장 실패: {e}",
             duration_seconds=duration_seconds
         )
 
         return None
-
 
 
 # 주식 데이터 가져오기
@@ -270,11 +287,11 @@ def fetch_stock_data(tickers, from_date, to_date):
             # ✅ 날짜별로 나눠 저장
             for date, df_date in df_final.groupby("Date"):
                 date_str = date.strftime("%Y_%m_%d")  # '2025-03-05' → '2025_03_05'
-                save_csv(df_date, date_str, '_'.join(valid_tickers), is_monthly=True)
+                save_csv_to_hdfs(df_date, date_str, '_'.join(valid_tickers), is_monthly=True)
 
                 for tick in valid_tickers:
                     ticker_data = df_date[df_date['Ticker'] == tick]
-                    save_csv(ticker_data, date_str, tick, is_monthly=False)
+                    save_csv_to_hdfs(ticker_data, date_str, tick, is_monthly=False)
 
             break  # 정상적으로 완료되면 루프 종료
 
