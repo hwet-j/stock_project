@@ -28,7 +28,7 @@ DB_CONFIG = {
 # HDFS 연결 정보 설정
 HDFS_URL = os.getenv("HDFS_HOST")
 HDFS_USER = os.getenv("HDFS_PORT")
-HDFS_DIR = os.getenv("HDFS_DIR", "/hwet/data/")  # 저장할 HDFS 경로
+HDFS_DIR = os.getenv("HDFS_DIR")
 
 # CSV 및 TIcker 파일 경로
 CSV_DIR = os.getenv("CSV_DIR")
