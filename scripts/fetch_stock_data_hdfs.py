@@ -32,7 +32,7 @@ DB_CONFIG = {
 HDFS_URL = os.getenv("HDFS_URL")
 HDFS_USER = os.getenv("HDFS_USER")
 HDFS_DIR = os.getenv("HDFS_DIR")
-HDFS_CSV_LOG_PATH = os.getenv("HDFS_CSV_LOG_PATH")
+HDFS_CSV_LOG_DIR = os.getenv("HDFS_CSV_LOG_DIR")
 
 # CSV 및 TIcker 파일 경로
 CSV_DIR = os.getenv("CSV_DIR")
@@ -129,7 +129,7 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
 def log_hdfs_csv_path(hdfs_path):
     """ HDFS에 저장된 CSV 경로를 로그 파일에 기록 """
     try:
-        with open(HDFS_CSV_LOG_PATH, "a") as log_file:
+        with open(HDFS_CSV_LOG_DIR, "a") as log_file:
             log_file.write(f"{hdfs_path}\n")
         print(f"[INFO] HDFS 경로 로그 기록 완료: {hdfs_path}")
     except Exception as e:
