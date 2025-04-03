@@ -148,7 +148,7 @@ def process_csv_files(csv_file_path=None):
                 move_data_from_temp_to_main()
                 drop_temp_table()
         else:
-            print(f"⚠️ HDFS 파일을 찾을 수 없음: {csv_file_path}")
+            print(f"⚠️ HDFS 파일을 찾을 수 없음1: {csv_file_path}")
     else:
         if not os.path.exists(CSV_LOG_FILE):
             print("📂 CSV 로그 파일이 없습니다.")
@@ -170,7 +170,7 @@ def process_csv_files(csv_file_path=None):
                     move_data_from_temp_to_main()
                     drop_temp_table()
             else:
-                print(f"⚠️ HDFS 파일을 찾을 수 없음: {csv_file}")
+                print(f"⚠️ HDFS 파일을 찾을 수 없음2: {csv_file}")
 
         print("✅ 모든 CSV 파일 처리 완료")
 
