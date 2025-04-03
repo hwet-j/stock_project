@@ -183,6 +183,11 @@ def drop_temp_table():
             conn.close()
 
 
+def hdfs_file_exists(hdfs_path):
+    """HDFS 파일 존재 여부 확인"""
+    check_cmd = ["hdfs", "dfs", "-test", "-e", hdfs_path]
+    return subprocess.call(check_cmd) == 0  # 성공 시 0 반환 (파일 존재)
+
 def process_csv_files(csv_file_path=None):
     """📂 로그 파일에서 CSV 목록을 읽어 처리"""
     if csv_file_path:
@@ -205,7 +210,7 @@ def process_csv_files(csv_file_path=None):
         print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
 
         for csv_file in csv_files:
-            if os.path.exists(csv_file):
+            if hdfs_file_exists(csv_file):
                 # Step 1: 임시 테이블에 CSV 파일 적재
                 success = csv_to_temp_table(csv_file)
                 if success:
