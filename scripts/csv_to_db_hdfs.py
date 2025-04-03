@@ -129,7 +129,13 @@ def hdfs_file_exists(hdfs_path):
     """HDFS 파일 존재 여부 확인"""
     check_cmd = ["hdfs", "dfs", "-test", "-e", hdfs_path]
     result = subprocess.run(check_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return result.returncode == 0  # 파일이 존재하면 0 반환
+
+    # HDFS가 정상적으로 실행되지 않거나, 오류가 있는 경우 로그 출력
+    if result.stderr:
+        print(f"⚠️ HDFS 확인 오류: {result.stderr.decode().strip()}")
+
+    return result.returncode == 0  # returncode가 0이면 파일이 존재하는 것
+
 
 
 def process_csv_files(csv_file_path=None):
