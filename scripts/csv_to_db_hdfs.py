@@ -16,7 +16,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS")
 }
 
-CSV_LOG_FILE = os.getenv("CSV_LOG_DIR")  # HDFS 로그 파일 경로
+CSV_LOG_FILE = os.getenv("HDFS_CSV_LOG_DIR")  # HDFS 로그 파일 경로
 
 
 def create_stock_data_table():
