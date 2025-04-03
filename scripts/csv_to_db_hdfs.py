@@ -16,23 +16,22 @@ DB_CONFIG = {
 }
 
 # HDFS 로그 파일 디렉터리
-HDFS_CSV_LOG_DIR = os.getenv("HDFS_CSV_LOG_DIR", "logs")
-HDFS_CSV_LOG_FILE = os.path.join(HDFS_CSV_LOG_DIR, "hdfs_csv_paths.log")
+HDFS_CSV_LOG_DIR = os.getenv("HDFS_CSV_LOG_DIR")
 
 
 def read_hdfs_csv_log():
     """📂 HDFS CSV 로그 파일에서 파일 경로 목록을 읽어옴"""
-    if not os.path.exists(HDFS_CSV_LOG_FILE):
-        print(f"⚠️ 로그 파일이 존재하지 않습니다: {HDFS_CSV_LOG_FILE}")
+    if not os.path.exists(HDFS_CSV_LOG_DIR):
+        print(f"⚠️ 로그 파일이 존재하지 않습니다: {HDFS_CSV_LOG_DIR}")
         return []
 
-    with open(HDFS_CSV_LOG_FILE, "r") as file:
+    with open(HDFS_CSV_LOG_DIR, "r") as file:
         return [line.strip() for line in file if line.strip()]
 
 
 def update_hdfs_csv_log(remaining_paths):
     """📝 처리 후 남은 HDFS CSV 경로 목록을 로그 파일에 다시 저장"""
-    with open(HDFS_CSV_LOG_FILE, "w") as file:
+    with open(HDFS_CSV_LOG_DIR, "w") as file:
         file.writelines(f"{path}\n" for path in remaining_paths)
 
 
