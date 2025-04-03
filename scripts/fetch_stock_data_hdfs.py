@@ -1,7 +1,6 @@
 import argparse
 import logging
 import time
-import pandas as pd
 import yfinance as yf
 import os
 from datetime import datetime, timedelta
@@ -10,6 +9,10 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
 from hdfs import InsecureClient
+import pandas as pd
+from io import StringIO
+import os
+from datetime import datetime
 
 
 # .env file load
@@ -29,6 +32,7 @@ DB_CONFIG = {
 HDFS_URL = os.getenv("HDFS_URL")
 HDFS_USER = os.getenv("HDFS_USER")
 HDFS_DIR = os.getenv("HDFS_DIR")
+HDFS_CSV_LOG_PATH = os.getenv("HDFS_CSV_LOG_PATH")
 
 # CSV 및 TIcker 파일 경로
 CSV_DIR = os.getenv("CSV_DIR")
@@ -121,19 +125,16 @@ def log_to_db(execution_time, from_date, to_date, tickers, step, status, message
             conn.close()
 
 
-from hdfs import InsecureClient
-import pandas as pd
-from io import StringIO
-import os
-from datetime import datetime
 
-# HDFS 클라이언트 설정
-HDFS_URL = os.getenv("HDFS_URL", "http://localhost:9870")  # WebHDFS 주소 (NameNode HTTP 포트)
-HDFS_USER = os.getenv("HDFS_USER", "hwet")  # HDFS 사용자
-HDFS_DIR = os.getenv("HDFS_DIR", "/hwet/data/")  # 저장할 HDFS 경로
+def log_hdfs_csv_path(hdfs_path):
+    """ HDFS에 저장된 CSV 경로를 로그 파일에 기록 """
+    try:
+        with open(HDFS_CSV_LOG_PATH, "a") as log_file:
+            log_file.write(f"{hdfs_path}\n")
+        print(f"[INFO] HDFS 경로 로그 기록 완료: {hdfs_path}")
+    except Exception as e:
+        print(f"[ERROR] HDFS 경로 로그 기록 실패: {e}")
 
-# HDFS 클라이언트 생성
-client = InsecureClient(HDFS_URL, user=HDFS_USER)
 
 
 def save_csv_to_hdfs(data, extract_date, tickers, is_monthly=False):
@@ -162,6 +163,10 @@ def save_csv_to_hdfs(data, extract_date, tickers, is_monthly=False):
         # HDFS에 저장
         with client.write(hdfs_path, encoding="utf-8", overwrite=True) as writer:
             writer.write(csv_buffer.getvalue())
+
+
+        # ✅ HDFS 경로를 로그 파일에도 기록
+        log_hdfs_csv_path(hdfs_path)
 
         # 메시지
         message = f"Data: {hdfs_path} 저장 완료"
