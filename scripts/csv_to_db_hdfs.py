@@ -1,9 +1,10 @@
-import os
+import argparse
 import subprocess
-import psycopg2
+import os
 from dotenv import load_dotenv
+import psycopg2
 
-# 환경 변수 로드
+# .env 파일 로드
 load_dotenv()
 
 # PostgreSQL 연결 정보
@@ -15,151 +16,219 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS")
 }
 
-# HDFS 로그 파일 디렉터리
-HDFS_CSV_LOG_DIR = os.getenv("HDFS_CSV_LOG_DIR")
-
-
-def read_hdfs_csv_log():
-    """📂 HDFS CSV 로그 파일에서 파일 경로 목록을 읽어옴"""
-    if not os.path.exists(HDFS_CSV_LOG_DIR):
-        print(f"⚠️ 로그 파일이 존재하지 않습니다: {HDFS_CSV_LOG_DIR}")
-        return []
-
-    with open(HDFS_CSV_LOG_DIR, "r") as file:
-        return [line.strip() for line in file if line.strip()]
-
-
-def update_hdfs_csv_log(remaining_paths):
-    """📝 처리 후 남은 HDFS CSV 경로 목록을 로그 파일에 다시 저장"""
-    with open(HDFS_CSV_LOG_DIR, "w") as file:
-        file.writelines(f"{path}\n" for path in remaining_paths)
+CSV_LOG_FILE = os.getenv("CSV_LOG_DIR")  # HDFS 로그 파일 경로
 
 
 def create_stock_data_table():
-    """📊 stock_data 테이블 생성"""
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS stock_data (
-        id BIGSERIAL PRIMARY KEY,
-        ticker TEXT NOT NULL,
-        date DATE NOT NULL,
-        open NUMERIC,
-        high NUMERIC,
-        low NUMERIC,
-        close NUMERIC,
-        volume BIGINT,
-        UNIQUE (ticker, date)
-    );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+    """📊 stock_data 테이블 생성 (없으면 생성)"""
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS stock_data (
+            id BIGSERIAL PRIMARY KEY,
+            ticker TEXT NOT NULL,
+            date DATE NOT NULL,
+            open NUMERIC,
+            high NUMERIC,
+            low NUMERIC,
+            close NUMERIC,
+            volume BIGINT,
+            UNIQUE (ticker, date)
+        );
+        """
+        cur.execute(create_table_query)
+        conn.commit()
+
+    except Exception as e:
+        print(f"❌ 테이블 생성 오류: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 def create_temp_table():
-    """📌 stock_data_temp 테이블 생성"""
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS stock_data_temp (
-        ticker TEXT,
-        date DATE,
-        open NUMERIC,
-        high NUMERIC,
-        low NUMERIC,
-        close NUMERIC,
-        volume BIGINT
-    );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def hdfs_to_temp_table(hdfs_path):
-    """📥 HDFS에서 CSV 파일을 읽어 PostgreSQL 임시 테이블에 적재"""
-    create_temp_table()
-
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-
+    """📌 stock_data_temp 테이블 생성 (없으면 생성)"""
+    conn = None
+    cur = None
     try:
-        # HDFS에서 파일 내용을 직접 읽어 COPY 실행
-        hdfs_cmd = ["hdfs", "dfs", "-cat", hdfs_path]
-        process = subprocess.Popen(hdfs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        copy_query = """
-        COPY stock_data_temp (ticker, date, open, high, low, close, volume)
-        FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
-        """
-        cur.copy_expert(sql=copy_query, file=process.stdout)
-
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS stock_data_temp (
+                ticker TEXT,
+                date DATE,
+                open NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                close NUMERIC,
+                volume BIGINT
+            );
+        """)
         conn.commit()
-        print(f"✅ HDFS 데이터 적재 완료: {hdfs_path}")
-        return True
 
     except Exception as e:
-        print(f"❌ HDFS 데이터 적재 실패: {e}")
+        print(f"❌ 테이블 생성 오류: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def csv_to_temp_table(hdfs_csv_file, target_table="stock_data_temp"):
+    """📥 HDFS에서 CSV 데이터를 읽어 PostgreSQL에 적재"""
+
+    # HDFS에서 파일이 존재하는지 확인
+    check_cmd = ["hdfs", "dfs", "-test", "-e", hdfs_csv_file]
+    if subprocess.call(check_cmd) != 0:
+        print(f"❌ HDFS 파일이 존재하지 않습니다: {hdfs_csv_file}")
+        return False
+
+    create_temp_table()
+
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        # COPY 명령어 (STDIN을 사용하여 데이터 삽입)
+        copy_query = f"""
+        COPY {target_table} (date, ticker, close, high, low, open, volume)
+        FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
+        """
+
+        # HDFS에서 CSV 데이터를 읽어 PostgreSQL로 적재
+        hdfs_cat_cmd = ["hdfs", "dfs", "-cat", hdfs_csv_file]
+        with subprocess.Popen(hdfs_cat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
+            stdout, stderr = proc.communicate()
+
+            if proc.returncode != 0:
+                print(f"❌ HDFS 파일 읽기 오류: {stderr}")
+                return False
+
+            # PostgreSQL COPY 명령 실행
+            cur.copy_expert(sql=copy_query, file=stdout.splitlines())
+
+        conn.commit()
+
+    except Exception as e:
+        print(f"❌ CSV 적재 실패: {e}")
         return False
 
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return True
 
 
 def move_data_from_temp_to_main():
-    """📤 stock_data_temp → stock_data 테이블로 데이터 이동"""
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
+    """📤 stock_data_temp 테이블에서 stock_data 테이블로 데이터 이동"""
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
 
-    cur.execute("""
-    INSERT INTO stock_data (ticker, date, open, high, low, close, volume)
-    SELECT ticker, date, open, high, low, close, volume
-    FROM stock_data_temp
-    ON CONFLICT (ticker, date) DO NOTHING;
-    """)
+        move_data_query = """
+        INSERT INTO stock_data (ticker, date, open, high, low, close, volume)
+        SELECT ticker, date, open, high, low, close, volume
+        FROM stock_data_temp
+        ON CONFLICT (ticker, date) DO NOTHING;
+        """
 
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("✅ 데이터 이동 완료")
+        cur.execute(move_data_query)
+        conn.commit()
+
+    except Exception as e:
+        print(f"❌ 데이터 이동 실패: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 def drop_temp_table():
     """📂 stock_data_temp 테이블 삭제"""
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS stock_data_temp;")
-    conn.commit()
-    cur.close()
-    conn.close()
+    conn = None
+    cur = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        drop_table_query = "DROP TABLE IF EXISTS stock_data_temp;"
+        cur.execute(drop_table_query)
+        conn.commit()
+
+    except Exception as e:
+        print(f"❌ 임시 테이블 삭제 실패: {e}")
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
-def process_hdfs_csv_files():
-    """📂 HDFS CSV 로그 파일을 읽어 모든 CSV를 처리"""
-    hdfs_paths = read_hdfs_csv_log()
-    if not hdfs_paths:
-        print("⚠️ 처리할 HDFS CSV 파일이 없습니다.")
-        return
+def process_csv_files(hdfs_csv_file_path=None):
+    """📂 HDFS 로그 파일에서 CSV 목록을 읽어 처리"""
 
-    processed_paths = []
-
-    for hdfs_path in hdfs_paths:
-        print(f"📂 HDFS 파일 처리 중: {hdfs_path}")
-        success = hdfs_to_temp_table(hdfs_path)
+    if hdfs_csv_file_path:
+        # 개별 파일 처리
+        success = csv_to_temp_table(hdfs_csv_file_path)
         if success:
             move_data_from_temp_to_main()
             drop_temp_table()
-            processed_paths.append(hdfs_path)
+    else:
+        # HDFS 로그 파일에서 CSV 파일 목록 읽기
+        hdfs_cat_cmd = ["hdfs", "dfs", "-cat", CSV_LOG_FILE]
+        try:
+            result = subprocess.run(hdfs_cat_cmd, capture_output=True, text=True, check=True)
+            csv_files = [line.strip() for line in result.stdout.split("\n") if line.strip()]
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ 로그 파일을 읽을 수 없습니다: {e}")
+            return
 
-    # 로그 파일 업데이트 (처리된 파일 제거)
-    remaining_paths = [path for path in hdfs_paths if path not in processed_paths]
-    update_hdfs_csv_log(remaining_paths)
+        if not csv_files:
+            print("📂 적재할 CSV 파일이 없습니다.")
+            return
 
-    print("✅ 모든 HDFS CSV 파일 처리 완료")
+        print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
+
+        for hdfs_csv_file in csv_files:
+            success = csv_to_temp_table(hdfs_csv_file)
+            if success:
+                move_data_from_temp_to_main()
+                drop_temp_table()
+
+        print("✅ 모든 CSV 파일 처리 완료")
+
+        # HDFS 로그 파일 삭제
+        subprocess.run(["hdfs", "dfs", "-rm", CSV_LOG_FILE], check=False)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="HDFS에서 CSV 파일을 PostgreSQL에 적재하는 스크립트")
+    parser.add_argument("csv_file", type=str, help="처리할 HDFS CSV 파일 경로", nargs="?", default=None)
+
+    args = parser.parse_args()
+
     create_stock_data_table()
-    process_hdfs_csv_files()
+
+    if args.csv_file:
+        process_csv_files(args.csv_file)
+    else:
+        process_csv_files()
