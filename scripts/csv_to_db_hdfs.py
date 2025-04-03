@@ -183,24 +183,20 @@ def drop_temp_table():
             conn.close()
 
 
-def process_csv_files(hdfs_csv_file_path=None):
-    """📂 HDFS 로그 파일에서 CSV 목록을 읽어 처리"""
-
-    if hdfs_csv_file_path:
-        # 개별 파일 처리
-        success = csv_to_temp_table(hdfs_csv_file_path)
-        if success:
-            move_data_from_temp_to_main()
-            drop_temp_table()
+def process_csv_files(csv_file_path=None):
+    """📂 로그 파일에서 CSV 목록을 읽어 처리"""
+    if csv_file_path:
+        # 인자가 전달되었을 때: 단일 CSV 파일 처리
+        if os.path.exists(csv_file_path):
+            success = csv_to_temp_table(csv_file_path)
+            if success:
+                move_data_from_temp_to_main()
+                drop_temp_table()
+        else:
+            print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
     else:
-        # HDFS 로그 파일에서 CSV 파일 목록 읽기
-        hdfs_cat_cmd = ["hdfs", "dfs", "-cat", CSV_LOG_FILE]
-        try:
-            result = subprocess.run(hdfs_cat_cmd, capture_output=True, text=True, check=True)
-            csv_files = [line.strip() for line in result.stdout.split("\n") if line.strip()]
-        except subprocess.CalledProcessError as e:
-            print(f"⚠️ 로그 파일을 읽을 수 없습니다: {e}")
-            return
+        with open(CSV_LOG_FILE, "r") as file:
+            csv_files = [line.strip() for line in file.readlines() if line.strip()]
 
         if not csv_files:
             print("📂 적재할 CSV 파일이 없습니다.")
@@ -208,16 +204,26 @@ def process_csv_files(hdfs_csv_file_path=None):
 
         print(f"📂 총 {len(csv_files)}개의 CSV 파일을 처리합니다.")
 
-        for hdfs_csv_file in csv_files:
-            success = csv_to_temp_table(hdfs_csv_file)
-            if success:
-                move_data_from_temp_to_main()
-                drop_temp_table()
+        for csv_file in csv_files:
+            if os.path.exists(csv_file):
+                # Step 1: 임시 테이블에 CSV 파일 적재
+                success = csv_to_temp_table(csv_file)
+                if success:
+                    # Step 2: 임시 테이블에서 실제 테이블로 데이터 이동
+                    move_data_from_temp_to_main()
+
+                    # Step 3: 임시 테이블 삭제
+                    drop_temp_table()
+            else:
+                print(f"⚠️ 파일을 찾을 수 없음: {csv_file_path}")
 
         print("✅ 모든 CSV 파일 처리 완료")
 
-        # HDFS 로그 파일 삭제
-        subprocess.run(["hdfs", "dfs", "-rm", CSV_LOG_FILE], check=False)
+        try:
+            os.remove(CSV_LOG_FILE)
+            print("..")
+        except Exception as e:
+            print(f"⚠️ 로그 파일 삭제 실패: {e}")
 
 
 if __name__ == "__main__":
