@@ -134,6 +134,7 @@ def hdfs_file_exists(hdfs_path):
     if result.stderr:
         print(f"⚠️ HDFS 확인 오류: {result.stderr.decode().strip()}")
 
+    print(f"HDFS 데이터 확인 결과 {result.returncode}")
     return result.returncode == 0  # returncode가 0이면 파일이 존재하는 것
 
 
