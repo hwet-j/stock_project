@@ -129,13 +129,13 @@ def hdfs_file_exists(hdfs_path):
     try:
         if client.status(hdfs_path, strict=False):
             print(f"✅ 파일 존재함: {hdfs_path}")
-            return 0
+            return 1
         else:
             print(f"❌ 파일 없음: {hdfs_path}")
-            return 1
+            return 0
     except Exception as e:
         print("오류 발생:", e)
-        return 1
+        return 0
 
 
 
