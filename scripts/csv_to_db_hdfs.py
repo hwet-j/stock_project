@@ -80,7 +80,7 @@ def csv_to_temp_table(hdfs_csv_file, target_table="stock_data_temp"):
 
         # PostgreSQL 연결 및 적재
         with psycopg2.connect(**DB_CONFIG) as conn, conn.cursor() as cur:
-            create_temp_table()  # 사전 정의된 함수라고 가정
+            create_temp_table()
             copy_query = f"""
             COPY {target_table} (date, ticker, close, high, low, open, volume)
             FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
@@ -93,6 +93,8 @@ def csv_to_temp_table(hdfs_csv_file, target_table="stock_data_temp"):
 
     except Exception as e:
         print(f"❌ CSV 적재 실패: {e}")
+        import traceback
+        traceback.print_exc()  # 전체 에러 스택 출력
         return False
 
 
