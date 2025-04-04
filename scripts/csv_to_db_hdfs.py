@@ -6,11 +6,7 @@ from dotenv import load_dotenv
 import psycopg2
 
 # .env 파일 로드
-if os.path.exists(".env"):
-    load_dotenv()
-else:
-    print("⚠️ .env 파일을 찾을 수 없습니다. 환경 변수를 직접 설정해주세요.")
-    exit(1)
+load_dotenv()
 
 # PostgreSQL 연결 정보
 DB_CONFIG = {
