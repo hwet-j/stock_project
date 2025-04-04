@@ -4,6 +4,7 @@ import os
 import io
 from dotenv import load_dotenv
 import psycopg2
+from hdfs import InsecureClient
 
 # .env 파일 로드
 load_dotenv()
@@ -18,7 +19,15 @@ DB_CONFIG = {
 }
 
 CSV_LOG_FILE = os.getenv("HDFS_CSV_LOG_DIR")  # HDFS 로그 파일 경로
+# HDFS 연결 정보 설정
+HDFS_URL = os.getenv("HDFS_URL")
+HDFS_USER = os.getenv("HDFS_USER")
+HDFS_DIR = os.getenv("HDFS_DIR")
+HDFS_CSV_LOG_DIR = os.getenv("HDFS_CSV_LOG_DIR")
 
+client = InsecureClient(HDFS_URL, user=HDFS_USER)
+
+# 환경 변수 확인
 
 def create_stock_data_table():
     """📊 stock_data 테이블 생성 (없으면 생성)"""
@@ -64,36 +73,28 @@ def create_temp_table():
 
 def csv_to_temp_table(hdfs_csv_file, target_table="stock_data_temp"):
     """📥 HDFS에서 CSV 데이터를 읽어 PostgreSQL에 적재"""
-    if not hdfs_file_exists(hdfs_csv_file):
-        print(f"❌ HDFS 파일이 존재하지 않습니다: {hdfs_csv_file}")
-        return False
-
-    create_temp_table()
-
     try:
+        # HDFS에서 CSV 읽기
+        with client.read(hdfs_csv_file, encoding='utf-8') as reader:
+            csv_data = io.StringIO(reader.read())
+
+        # PostgreSQL 연결 및 적재
         with psycopg2.connect(**DB_CONFIG) as conn, conn.cursor() as cur:
+            create_temp_table()  # 사전 정의된 함수라고 가정
             copy_query = f"""
             COPY {target_table} (date, ticker, close, high, low, open, volume)
             FROM STDIN WITH CSV HEADER DELIMITER ',' QUOTE '"';
             """
-
-            # HDFS에서 CSV 데이터를 읽어 PostgreSQL로 적재
-            hdfs_cat_cmd = ["hdfs", "dfs", "-cat", hdfs_csv_file]
-            result = subprocess.run(hdfs_cat_cmd, capture_output=True, text=True)
-
-            if result.returncode != 0:
-                print(f"❌ HDFS 파일 읽기 오류: {result.stderr}")
-                return False
-
-            csv_data = io.StringIO(result.stdout)
             cur.copy_expert(sql=copy_query, file=csv_data)
             conn.commit()
+
+        print(f"✅ HDFS 파일 적재 성공: {hdfs_csv_file}")
+        return True
 
     except Exception as e:
         print(f"❌ CSV 적재 실패: {e}")
         return False
 
-    return True
 
 
 def move_data_from_temp_to_main():
@@ -123,15 +124,17 @@ def drop_temp_table():
 
 def hdfs_file_exists(hdfs_path):
     """HDFS 파일 존재 여부 확인"""
-    check_cmd = ["hdfs", "dfs", "-test", "-e", hdfs_path]
-    result = subprocess.run(check_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        if client.status(hdfs_path, strict=False):
+            print(f"✅ 파일 존재함: {hdfs_path}")
+            return 0
+        else:
+            print(f"❌ 파일 없음: {hdfs_path}")
+            return 1
+    except Exception as e:
+        print("오류 발생:", e)
+        return 1
 
-    # HDFS가 정상적으로 실행되지 않거나, 오류가 있는 경우 로그 출력
-    if result.stderr:
-        print(f"⚠️ HDFS 확인 오류: {result.stderr.decode().strip()}")
-
-    print(f"HDFS 데이터 확인 결과 {result.returncode}")
-    return result.returncode == 0  # returncode가 0이면 파일이 존재하는 것
 
 
 
